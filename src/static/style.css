@@ -1,0 +1,242 @@
+/* FlightView — Dark theme optimized for 800x480 display */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #0a0a1a;
+    color: #e8e8f0;
+    font-family: system-ui, -apple-system, sans-serif;
+    width: 800px;
+    height: 480px;
+    overflow: hidden;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    padding: 12px 24px;
+}
+
+/* Header */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 720px;
+    margin-bottom: 12px;
+}
+
+h1 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #e8e8f0;
+}
+
+.nearby-badge {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #4ecca3;
+    padding: 4px 12px;
+    border-radius: 12px;
+    background: #1a1a2e;
+    border: 1px solid #2a2a4e;
+}
+
+/* Flight card */
+.flight-card {
+    background: #1a1a2e;
+    border-radius: 12px;
+    padding: 24px 32px;
+    width: 100%;
+    max-width: 720px;
+    border: 1px solid #2a2a4e;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+    transition: opacity 0.3s ease;
+}
+
+.flight-card.hidden {
+    display: none;
+}
+
+.flight-card.fade-out {
+    opacity: 0;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #2a2a4e;
+}
+
+.airline-name {
+    font-size: 2em;
+    font-weight: 700;
+    color: #e8e8f0;
+}
+
+.flight-number {
+    font-size: 1.5em;
+    font-weight: 600;
+    color: #4ecca3;
+}
+
+.card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.aircraft-type {
+    font-size: 1.1em;
+    color: #8888a0;
+}
+
+.route {
+    font-size: 1.3em;
+    font-weight: 600;
+    color: #e8e8f0;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.route-arrow {
+    color: #f0a500;
+    font-size: 1.2em;
+    font-weight: 700;
+}
+
+.stats {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    gap: 16px;
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    background: #12122a;
+    border-radius: 8px;
+    padding: 10px 8px;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #6868a0;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #e8e8f0;
+}
+
+.direction-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 6px;
+}
+
+.direction-badge {
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 5px 16px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.direction-badge.approaching {
+    background: rgba(78, 204, 163, 0.15);
+    color: #4ecca3;
+}
+
+.direction-badge.departing {
+    background: rgba(233, 69, 96, 0.15);
+    color: #e94560;
+}
+
+.direction-badge.overhead {
+    background: rgba(240, 165, 0, 0.15);
+    color: #f0a500;
+}
+
+.compass {
+    font-size: 0.95rem;
+    color: #8888a0;
+}
+
+/* Empty state */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    opacity: 0.45;
+}
+
+.empty-state.hidden {
+    display: none;
+}
+
+.empty-icon {
+    font-size: 3.5rem;
+    margin-bottom: 12px;
+}
+
+.empty-state p {
+    font-size: 1.2rem;
+    color: #6868a0;
+}
+
+/* Footer */
+footer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: auto;
+    padding-top: 8px;
+}
+
+.conn-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.conn-dot.connected {
+    background: #4ecca3;
+    box-shadow: 0 0 6px #4ecca3;
+}
+
+.conn-dot.disconnected {
+    background: #e94560;
+    box-shadow: 0 0 6px #e94560;
+}
+
+.conn-label {
+    font-size: 0.7rem;
+    color: #6868a0;
+}

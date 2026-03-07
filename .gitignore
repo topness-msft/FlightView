@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Test artifacts
+test-runs/*/logs.txt
+test-runs/*/screenshots/
+test-runs/*/recording.*
+playwright-videos/

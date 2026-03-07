@@ -1,0 +1,7 @@
+flask
+flask-socketio
+python-dotenv
+requests
+pytest
+geopy
+eventlet

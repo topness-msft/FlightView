@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=800, height=480, initial-scale=1.0">
+    <title>FlightView</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>✈ FlightView</h1>
+            <span id="nearby-count" class="nearby-badge">0 nearby</span>
+        </header>
+
+        <main id="flight-display">
+            <!-- Flight card rendered here when aircraft are nearby -->
+            <div id="flight-card" class="flight-card hidden">
+                <div class="card-header">
+                    <span id="airline-name" class="airline-name">—</span>
+                    <span id="flight-number" class="flight-number">—</span>
+                </div>
+                <div class="card-body">
+                    <div class="aircraft-type" id="aircraft-type">—</div>
+                    <div class="route" id="route">
+                        <span id="route-origin">—</span>
+                        <span class="route-arrow">→</span>
+                        <span id="route-dest">—</span>
+                    </div>
+                    <div class="stats">
+                        <div class="stat">
+                            <span class="stat-label">ALT</span>
+                            <span class="stat-value" id="altitude">—</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">SPD</span>
+                            <span class="stat-value" id="speed">—</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">DIST</span>
+                            <span class="stat-value" id="distance">—</span>
+                        </div>
+                    </div>
+                    <div class="direction-row">
+                        <span id="direction" class="direction-badge">—</span>
+                        <span id="compass" class="compass">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shown when no aircraft are nearby -->
+            <div id="empty-state" class="empty-state">
+                <div class="empty-icon">✈️</div>
+                <p>No aircraft nearby</p>
+            </div>
+        </main>
+
+        <footer>
+            <span id="conn-dot" class="conn-dot disconnected"></span>
+            <span id="conn-label" class="conn-label">Disconnected</span>
+        </footer>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "flightview",
+  "created": "2026-03-07T15:49:04Z",
+  "status": "initialized",
+  "techStack": {
+    "backend": "Python/Flask",
+    "frontend": "Vanilla JS + CSS",
+    "primaryDataSource": "OpenSky Network API",
+    "enrichment": ["Static ICAO DB", "ADS-B Exchange (RapidAPI)"],
+    "realtime": "Flask-SocketIO (WebSocket)",
+    "testing": "pytest + Playwright"
+  },
+  "config": {
+    "displayMode": "kiosk",
+    "theme": "dark",
+    "targetDevice": "Raspberry Pi + 7in screen"
+  },
+  "agents": []
+}
