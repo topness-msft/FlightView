@@ -416,6 +416,9 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     display:flex; flex-direction:column; align-items:flex-end;
     justify-self:end; position:relative; z-index:1;
 }
+.cl-strip-stat__icon {
+    font-size:0.6rem; margin-right:3px; opacity:0.5;
+}
 .cl-strip-stat__val {
     font-family:var(--mono); font-size:0.75rem; font-weight:600;
     color:var(--cl-cream); line-height:1.4; text-align:right;
@@ -679,6 +682,9 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 .md-li__stats {
     display:flex; flex-direction:column; align-items:flex-end;
     justify-self:end;
+}
+.md-li__icon {
+    font-size:0.6rem; margin-right:3px; opacity:0.4;
 }
 .md-li__stat {
     font-family:var(--mono); font-size:0.75rem; font-weight:600;

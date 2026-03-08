@@ -496,8 +496,8 @@
         tp.textContent = typeCode;
 
         var stats = document.createElement("div"); stats.className = "cl-strip__stats";
-        stats.innerHTML = '<span class="cl-strip-stat__val">' + fmt(ac.altitude_ft) + ' <span class="cl-strip-stat__unit">FT</span></span>'
-            + '<span class="cl-strip-stat__val">' + fmt(ac.distance_ft) + ' <span class="cl-strip-stat__unit">FT</span></span>';
+        stats.innerHTML = '<span class="cl-strip-stat__val"><span class="cl-strip-stat__icon">↕</span>' + fmt(ac.altitude_ft) + ' <span class="cl-strip-stat__unit">FT</span></span>'
+            + '<span class="cl-strip-stat__val"><span class="cl-strip-stat__icon">↔</span>' + fmt(ac.distance_ft) + ' <span class="cl-strip-stat__unit">FT</span></span>';
 
         card.appendChild(left); card.appendChild(orig); card.appendChild(arrow);
         card.appendChild(dest); card.appendChild(tp); card.appendChild(stats);
@@ -629,8 +629,8 @@
             tp.textContent = typeCode;
 
             var stats = document.createElement("div"); stats.className = "md-li__stats";
-            stats.innerHTML = '<span class="md-li__stat">' + fmt(ac.altitude_ft) + ' <span class="md-li__unit">ft</span></span>'
-                + '<span class="md-li__stat">' + fmt(ac.distance_ft) + ' <span class="md-li__unit">ft</span></span>';
+            stats.innerHTML = '<span class="md-li__stat"><span class="md-li__icon">↕</span>' + fmt(ac.altitude_ft) + ' <span class="md-li__unit">ft</span></span>'
+                + '<span class="md-li__stat"><span class="md-li__icon">↔</span>' + fmt(ac.distance_ft) + ' <span class="md-li__unit">ft</span></span>';
 
             item.appendChild(left); item.appendChild(orig); item.appendChild(arrow);
             item.appendChild(dest); item.appendChild(tp);
