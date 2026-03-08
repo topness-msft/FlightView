@@ -27,6 +27,9 @@ Thumbs.db
 .env
 .env.local
 
+# Aircraft database (auto-downloaded)
+data/
+
 # Test artifacts
 test-runs/*/logs.txt
 test-runs/*/screenshots/

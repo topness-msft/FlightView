@@ -7,6 +7,7 @@ aircraft names.
 
 import csv
 import logging
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -211,6 +212,33 @@ class ICAODatabase:
             return False
         return icao24.strip().lower() in self._db
 
+OPENSKY_DB_URL = "https://opensky-network.org/datasets/metadata/aircraftDatabase.csv"
+DB_DIR = Path(__file__).resolve().parent.parent / "data"
+DB_PATH = DB_DIR / "aircraftDatabase.csv"
 
-# Module-level singleton
-icao_db = ICAODatabase()
+
+def ensure_aircraft_db() -> str | None:
+    """Download the OpenSky aircraft database if not present. Returns path or None."""
+    if DB_PATH.exists():
+        logger.info("Aircraft database found: %s (%d MB)", DB_PATH, DB_PATH.stat().st_size // 1_000_000)
+        return str(DB_PATH)
+
+    logger.info("Downloading OpenSky aircraft database (~90 MB)...")
+    try:
+        DB_DIR.mkdir(parents=True, exist_ok=True)
+        import requests
+        resp = requests.get(OPENSKY_DB_URL, timeout=120, stream=True)
+        resp.raise_for_status()
+        with open(DB_PATH, "wb") as f:
+            for chunk in resp.iter_content(chunk_size=1_000_000):
+                f.write(chunk)
+        logger.info("Aircraft database downloaded: %s (%d MB)", DB_PATH, DB_PATH.stat().st_size // 1_000_000)
+        return str(DB_PATH)
+    except Exception:
+        logger.warning("Failed to download aircraft database", exc_info=True)
+        return None
+
+
+# Module-level singleton — auto-download on first import
+_db_path = ensure_aircraft_db()
+icao_db = ICAODatabase(_db_path)
