@@ -79,8 +79,8 @@ cd src && python app.py
 # Open http://localhost:5000
 ```
 
-## Raspberry Pi Deployment
-```bash
-chmod +x deploy-pi.sh && ./deploy-pi.sh
-sudo reboot  # Starts kiosk mode
-```
+## Future Roadmap
+- **RTL-SDR integration** — Local ADS-B receiver (dump1090) for sub-second position updates. ~$40 hardware (RTL-SDR dongle + 1090 MHz antenna). Works indoors on a window sill (30-80 mile range). Would replace OpenSky polling for much more accurate distances.
+- **Aircraft silhouette images** — Show aircraft type silhouettes on detail view
+- **E2E tests** — Playwright-based end-to-end testing
+- **OpenSky aircraft DB auto-update** — Periodically refresh the 520K-record CSV
