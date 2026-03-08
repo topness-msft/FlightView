@@ -443,9 +443,12 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 /* 8. MODERN SHARED STYLES
    ================================================================ */
 
-#screen-modern-multi, #screen-modern-single {
+#screen-modern-multi {
     background: linear-gradient(180deg, #0F172A 0%, #0B1120 100%);
     padding: 12px 28px 28px;
+}
+#screen-modern-single {
+    padding:0;
 }
 
 .md-hdr {
@@ -456,86 +459,113 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     font-family:var(--ff); font-size:0.85rem; font-weight:300;
     color:var(--md-dim); letter-spacing:1px;
 }
-.md-hdr__badge {
-    font-family:var(--mono); font-size:0.75rem; font-weight:600;
-    color:#fff; background:var(--md-blue); padding:3px 12px;
-    border-radius:4px; letter-spacing:1px;
-}
 .md-hdr__right { display:flex; align-items:center; gap:12px; }
 .md-hdr__count {
     font-family:var(--ff); font-size:0.7rem; font-weight:400; color:var(--md-muted);
 }
 
-/* 9. MODERN: SINGLE-PLANE CARD
+/* 9. MODERN: SINGLE-PLANE — HEATHROW SIGNAGE
    ================================================================ */
 
-.md-card {
-    flex:1; display:flex; flex-direction:column; justify-content:center; gap:0;
-    transition:opacity 0.25s;
+.lhr {
+    background:#FECB00; font-family:var(--ff);
+    display:flex; flex-direction:column; height:100%;
+    color:#1A1A1A;
 }
-.md-card.fade-out { opacity:0; }
-
-.md-card__identity { margin-bottom:4px; }
-.md-card__airline {
-    font-family:var(--ff); font-size:clamp(1.8rem,4vw,2.8rem); font-weight:200;
-    color:var(--md-text); letter-spacing:-0.5px; line-height:1.1;
+.lhr__header {
+    display:flex; align-items:center; gap:12px;
+    padding:12px 28px 10px; border-bottom:3px solid rgba(0,0,0,0.06);
+    flex-shrink:0;
 }
-.md-card__meta { display:flex; align-items:center; gap:14px; margin-top:2px; }
-.md-card__type { font-size:0.82rem; font-weight:300; color:var(--md-dim); }
-.md-card__reg { font-family:var(--mono); font-size:0.65rem; color:var(--md-muted); }
-
-/* Route */
-.md-card__route {
+.lhr__icon {
+    width:36px; height:36px; background:#1A1A1A; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
-    margin:16px 0; padding:14px 0;
-    border-top:1px solid var(--md-border); border-bottom:1px solid var(--md-border);
+    font-size:1rem; color:#FECB00;
 }
-.md-card__route.no-route { display:none; }
-.md-route-end { text-align:center; min-width:100px; }
-.md-route__code {
-    font-family:var(--mono); font-size:clamp(1.4rem,3vw,2.2rem); font-weight:700;
-    color:var(--md-text); letter-spacing:3px; display:block;
+.lhr__header-text {
+    font-size:1.1rem; font-weight:700; letter-spacing:0.5px;
 }
-.md-route__label {
-    font-size:0.6rem; font-weight:400; color:var(--md-muted);
+.lhr__header-sub {
+    font-size:0.7rem; font-weight:400; color:rgba(0,0,0,0.4);
+    margin-left:auto; letter-spacing:1px;
+}
+.lhr__body {
+    flex:1; display:flex; flex-direction:column; padding:12px 28px;
+    gap:8px; justify-content:center;
+}
+.lhr__airline {
+    font-size:clamp(2rem,5vw,3.2rem); font-weight:900; color:#1A1A1A;
+    line-height:1; letter-spacing:-1px;
+}
+.lhr__meta {
+    display:flex; align-items:baseline; gap:10px;
+    margin-bottom:6px;
+}
+.lhr__flight {
+    font-family:var(--mono); font-size:1.4rem; font-weight:700;
+    color:#1A1A1A; letter-spacing:1px;
+    background:rgba(0,0,0,0.06); padding:3px 12px; border-radius:4px;
+}
+.lhr__type {
+    font-size:1.1rem; font-weight:500; color:rgba(0,0,0,0.4);
+}
+.lhr__reg {
+    font-family:var(--mono); font-size:0.7rem; font-weight:400;
+    color:rgba(0,0,0,0.3);
+}
+.lhr__route {
+    display:flex; align-items:center; gap:14px;
+    padding:10px 0; border-top:2px solid rgba(0,0,0,0.06);
+    border-bottom:2px solid rgba(0,0,0,0.06);
+}
+.lhr__endpoint { text-align:center; }
+.lhr__iata {
+    font-family:var(--mono); font-size:clamp(2rem,4.5vw,3rem); font-weight:900;
+    color:#1A1A1A; letter-spacing:3px; line-height:1;
+}
+.lhr__city {
+    font-size:0.6rem; font-weight:500; color:rgba(0,0,0,0.35);
     text-transform:uppercase; letter-spacing:1.5px; margin-top:2px;
 }
-.md-route__path { display:flex; align-items:center; flex:0 1 200px; margin:0 16px; }
-.md-route__line { flex:1; height:1px; background:var(--md-border); }
-.md-route__icon {
-    color:var(--md-blue); font-size:0.9rem; margin:0 10px;
-    filter:drop-shadow(0 0 6px var(--md-blue-glow));
+.lhr__route-path {
+    flex:1; display:flex; align-items:center; gap:8px;
 }
-
-/* Stats */
-.md-card__stats {
-    display:flex; justify-content:center; gap:0; margin-bottom:14px;
+.lhr__route-dash {
+    flex:1; height:3px; background:rgba(0,0,0,0.1); border-radius:2px;
 }
-.md-stat {
-    flex:1; max-width:160px; text-align:center; padding:8px 12px;
-    border-right:1px solid var(--md-border);
+.lhr__route-icon { font-size:1.2rem; color:#1A1A1A; }
+.lhr__stats {
+    display:flex; gap:0;
 }
-.md-stat:last-child { border-right:none; }
-.md-stat__val {
-    font-family:var(--mono); font-size:clamp(1rem,2vw,1.5rem); font-weight:600;
-    color:var(--md-text); display:block; line-height:1.2;
+.lhr__stat {
+    flex:1; display:flex; flex-direction:column; align-items:center;
+    padding:8px 4px;
+    border-right:2px solid rgba(0,0,0,0.06);
 }
-.md-stat__lbl {
-    font-size:0.55rem; font-weight:400; color:var(--md-muted);
-    text-transform:uppercase; letter-spacing:1.5px; margin-top:2px;
+.lhr__stat:last-child { border-right:none; }
+.lhr__stat-val {
+    font-family:var(--mono); font-size:clamp(1.2rem,2.5vw,1.7rem); font-weight:700;
+    color:#1A1A1A;
 }
-
-/* Status */
-.md-card__status { display:flex; align-items:center; justify-content:center; gap:16px; }
-.md-dir {
-    font-family:var(--ff); font-size:0.72rem; font-weight:600;
-    padding:4px 14px; border-radius:20px; text-transform:uppercase;
-    letter-spacing:1px;
+.lhr__stat-unit {
+    font-size:0.55rem; font-weight:500; color:rgba(0,0,0,0.3);
+    letter-spacing:0.5px;
 }
-.md-dir.approaching { background:var(--c-emerald-bg); color:var(--c-emerald); }
-.md-dir.departing   { background:var(--c-rose-bg); color:var(--c-rose); }
-.md-dir.overhead    { background:var(--md-blue-bg); color:var(--md-blue-bright); }
-.md-status-txt { font-size:0.75rem; color:var(--md-muted); }
+.lhr__stat-lbl {
+    font-size:0.45rem; font-weight:700; color:rgba(0,0,0,0.2);
+    letter-spacing:2px; text-transform:uppercase; margin-top:2px;
+}
+.lhr__footer {
+    display:flex; align-items:center; justify-content:center; gap:14px;
+    padding:8px 28px; background:rgba(0,0,0,0.03); flex-shrink:0;
+}
+.lhr__dir {
+    font-weight:700; font-size:0.8rem; letter-spacing:2px;
+    text-transform:uppercase; background:#1A1A1A; color:#FECB00;
+    padding:3px 14px; border-radius:20px;
+}
+.lhr__compass { font-size:0.75rem; color:rgba(0,0,0,0.35); }
+.lhr__hdg { font-family:var(--mono); font-size:0.75rem; color:rgba(0,0,0,0.3); }
 
 /* 10. MODERN: MULTI-PLANE RADAR
    ================================================================ */

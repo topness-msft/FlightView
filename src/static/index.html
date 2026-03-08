@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=26">
+    <link rel="stylesheet" href="/static/style.css?v=29">
 </head>
 <body>
 
@@ -114,50 +114,50 @@
         </div>
     </div>
 
-    <!-- ========== MODERN: SINGLE-PLANE (detail card) ========== -->
+    <!-- ========== MODERN: SINGLE-PLANE (Heathrow signage) ========== -->
     <div class="screen" id="screen-modern-single">
-        <header class="md-hdr">
-            <span id="md-s-badge" class="md-hdr__badge">—</span>
-            <div class="md-hdr__right">
-                <span id="md-s-count" class="md-hdr__count">0 nearby</span>
+        <div class="lhr">
+            <header class="lhr__header">
+                <div class="lhr__icon">✈</div>
+                <span class="lhr__header-text">Overhead Flight</span>
+                <span id="md-s-count" class="lhr__header-sub">0 nearby</span>
                 <span id="md-s-conn" class="hdr-conn"></span>
-            </div>
-        </header>
-        <main class="md-card">
-            <div class="md-card__identity">
-                <h1 id="md-airline" class="md-card__airline">—</h1>
-                <div class="md-card__meta">
-                    <span id="md-type" class="md-card__type">—</span>
-                    <span id="md-reg" class="md-card__reg"></span>
+            </header>
+            <main class="lhr__body">
+                <h1 id="md-airline" class="lhr__airline">—</h1>
+                <div class="lhr__meta">
+                    <span id="md-s-badge" class="lhr__flight">—</span>
+                    <span id="md-type" class="lhr__type">—</span>
+                    <span id="md-reg" class="lhr__reg">—</span>
                 </div>
-            </div>
-            <div class="md-card__route" id="md-route-row">
-                <div class="md-route-end">
-                    <span id="md-origin" class="md-route__code">—</span>
-                    <span class="md-route__label">Origin</span>
+                <div class="lhr__route" id="md-route-row">
+                    <div class="lhr__endpoint">
+                        <span id="md-origin" class="lhr__iata">—</span>
+                        <span id="md-origin-city" class="lhr__city"></span>
+                    </div>
+                    <div class="lhr__route-path">
+                        <span class="lhr__route-dash"></span>
+                        <span class="lhr__route-icon">✈</span>
+                        <span class="lhr__route-dash"></span>
+                    </div>
+                    <div class="lhr__endpoint">
+                        <span id="md-dest" class="lhr__iata">—</span>
+                        <span id="md-dest-city" class="lhr__city"></span>
+                    </div>
                 </div>
-                <div class="md-route__path">
-                    <span class="md-route__line"></span>
-                    <span class="md-route__icon">✈</span>
-                    <span class="md-route__line"></span>
+                <div class="lhr__stats">
+                    <div class="lhr__stat"><span id="md-alt" class="lhr__stat-val">—</span><span class="lhr__stat-unit"> ft</span><br><span class="lhr__stat-lbl">Altitude</span></div>
+                    <div class="lhr__stat"><span id="md-spd" class="lhr__stat-val">—</span><span class="lhr__stat-unit"> kts</span><br><span class="lhr__stat-lbl">Speed</span></div>
+                    <div class="lhr__stat"><span id="md-dist" class="lhr__stat-val">—</span><span class="lhr__stat-unit"> ft</span><br><span class="lhr__stat-lbl">Distance</span></div>
+                    <div class="lhr__stat"><span id="md-vrate" class="lhr__stat-val">—</span><span class="lhr__stat-unit"> fpm</span><br><span class="lhr__stat-lbl">Vert Spd</span></div>
                 </div>
-                <div class="md-route-end">
-                    <span id="md-dest" class="md-route__code">—</span>
-                    <span class="md-route__label">Destination</span>
-                </div>
+            </main>
+            <div class="lhr__footer">
+                <span id="md-dir" class="lhr__dir">—</span>
+                <span id="md-compass" class="lhr__compass">—</span>
+                <span id="md-hdg" class="lhr__hdg">—</span>
             </div>
-            <div class="md-card__stats">
-                <div class="md-stat"><span id="md-alt" class="md-stat__val">—</span><span class="md-stat__lbl">Altitude</span></div>
-                <div class="md-stat"><span id="md-spd" class="md-stat__val">—</span><span class="md-stat__lbl">Speed</span></div>
-                <div class="md-stat"><span id="md-dist" class="md-stat__val">—</span><span class="md-stat__lbl">Distance</span></div>
-                <div class="md-stat"><span id="md-vrate" class="md-stat__val">—</span><span class="md-stat__lbl">VS</span></div>
-            </div>
-            <div class="md-card__status">
-                <span id="md-dir" class="md-dir">—</span>
-                <span id="md-compass" class="md-status-txt">—</span>
-                <span id="md-hdg" class="md-status-txt">—</span>
-            </div>
-        </main>
+        </div>
     </div>
 
     <!-- ========== CONFIG SCREEN ========== -->
@@ -196,6 +196,6 @@
     </div>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="/static/app.js?v=26"></script>
+    <script src="/static/app.js?v=27"></script>
 </body>
 </html>

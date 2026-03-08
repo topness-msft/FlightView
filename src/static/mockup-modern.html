@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlightView — Modern Single-Plane Design Options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@400;500;700;900&family=Oxanium:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+body { background:#111; color:#fff; font-family:'DM Sans', sans-serif; padding:30px; }
+h1 { font-size:1.2rem; font-weight:400; color:#888; letter-spacing:4px; text-transform:uppercase; margin-bottom:30px; }
+.options { display:flex; flex-direction:column; gap:40px; max-width:900px; margin:0 auto; }
+.option { position:relative; }
+.option__label {
+  font-family:'JetBrains Mono', monospace; font-size:0.7rem; font-weight:600;
+  color:#666; letter-spacing:3px; text-transform:uppercase; margin-bottom:10px;
+}
+.card {
+  width:860px; height:480px; border-radius:12px; overflow:hidden;
+  position:relative; border:1px solid #333;
+}
+
+/* ================================================================
+   OPTION A — GLASS COCKPIT PFD
+   ================================================================ */
+.pfd {
+  background:#0A0F1E;
+  display:grid; grid-template-columns:80px 1fr 80px;
+  grid-template-rows:1fr 60px; font-family:'Oxanium', sans-serif;
+}
+.pfd__tape {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  position:relative; overflow:hidden;
+}
+.pfd__tape--spd { background:#0D1225; border-right:2px solid #1A3A5C; }
+.pfd__tape--alt { background:#0D1225; border-left:2px solid #1A3A5C; }
+.pfd__tape-label {
+  position:absolute; top:8px; font-size:0.55rem; font-weight:500;
+  color:#4A7A9A; letter-spacing:2px;
+}
+.pfd__tape-marks {
+  display:flex; flex-direction:column; gap:18px; align-items:center;
+}
+.pfd__tape-val {
+  font-family:'JetBrains Mono', monospace; font-size:0.65rem; color:#3A6A8A;
+}
+.pfd__tape-cur {
+  font-family:'JetBrains Mono', monospace; font-size:1.1rem; font-weight:700;
+  color:#00FF88; background:rgba(0,255,136,0.08); padding:4px 10px;
+  border:1px solid rgba(0,255,136,0.3); border-radius:3px;
+}
+.pfd__center {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:8px; padding:20px;
+}
+.pfd__airline {
+  font-size:2.2rem; font-weight:300; color:#E0E8F0; letter-spacing:1px;
+}
+.pfd__flight {
+  font-family:'JetBrains Mono', monospace; font-size:1rem; font-weight:600;
+  color:#00AAFF; letter-spacing:2px; background:rgba(0,170,255,0.08);
+  padding:4px 16px; border-radius:4px; border:1px solid rgba(0,170,255,0.2);
+}
+.pfd__route {
+  display:flex; align-items:center; gap:16px; margin:10px 0;
+}
+.pfd__iata {
+  font-family:'JetBrains Mono', monospace; font-size:1.8rem; font-weight:700;
+  color:#fff; letter-spacing:3px;
+}
+.pfd__route-line {
+  width:80px; height:2px; background:linear-gradient(90deg, #1A3A5C, #00AAFF, #1A3A5C);
+  position:relative;
+}
+.pfd__route-line::after {
+  content:'✈'; position:absolute; top:-10px; left:50%; transform:translateX(-50%);
+  font-size:0.9rem; color:#00AAFF;
+}
+.pfd__type {
+  font-size:0.8rem; font-weight:400; color:#4A6A8A; letter-spacing:2px;
+}
+.pfd__status {
+  display:flex; gap:20px;
+}
+.pfd__stat {
+  text-align:center;
+}
+.pfd__stat-val {
+  font-family:'JetBrains Mono', monospace; font-size:0.9rem; font-weight:600; color:#00FF88;
+}
+.pfd__stat-lbl {
+  font-size:0.5rem; color:#3A5A7A; letter-spacing:1.5px;
+}
+.pfd__heading {
+  grid-column:1/4; background:#0D1225; border-top:2px solid #1A3A5C;
+  display:flex; align-items:center; justify-content:center; gap:30px;
+}
+.pfd__hdg-marks {
+  display:flex; gap:20px; align-items:center;
+}
+.pfd__hdg-val {
+  font-family:'JetBrains Mono', monospace; font-size:0.6rem; color:#3A6A8A;
+}
+.pfd__hdg-cur {
+  font-family:'JetBrains Mono', monospace; font-size:1rem; font-weight:700;
+  color:#00FF88; border:1px solid rgba(0,255,136,0.3); padding:4px 12px;
+  border-radius:3px; background:rgba(0,255,136,0.05);
+}
+.pfd__hdg-label {
+  font-size:0.5rem; color:#4A7A9A; letter-spacing:2px;
+}
+
+/* ================================================================
+   OPTION B — HUD OVERLAY
+   ================================================================ */
+.hud {
+  background:#050A08; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  font-family:'Share Tech Mono', monospace;
+  position:relative;
+}
+.hud::before {
+  content:''; position:absolute; inset:0;
+  background:repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,255,170,0.015) 3px, rgba(0,255,170,0.015) 4px);
+  pointer-events:none;
+}
+.hud__bracket-tl, .hud__bracket-tr, .hud__bracket-bl, .hud__bracket-br {
+  position:absolute; width:60px; height:60px;
+  border:2px solid rgba(0,255,170,0.25);
+}
+.hud__bracket-tl { top:20px; left:20px; border-right:none; border-bottom:none; }
+.hud__bracket-tr { top:20px; right:20px; border-left:none; border-bottom:none; }
+.hud__bracket-bl { bottom:20px; left:20px; border-right:none; border-top:none; }
+.hud__bracket-br { bottom:20px; right:20px; border-left:none; border-top:none; }
+
+.hud__center {
+  position:relative; z-index:1; display:flex; flex-direction:column;
+  align-items:center; gap:6px;
+}
+.hud__crosshair {
+  width:40px; height:40px; position:relative; margin-bottom:10px;
+}
+.hud__crosshair::before, .hud__crosshair::after {
+  content:''; position:absolute; background:rgba(0,255,170,0.5);
+}
+.hud__crosshair::before { width:40px; height:1px; top:50%; left:0; }
+.hud__crosshair::after { width:1px; height:40px; left:50%; top:0; }
+
+.hud__airline { font-size:1.6rem; color:#00FFAA; letter-spacing:4px; }
+.hud__flight { font-size:0.9rem; color:rgba(0,255,170,0.6); letter-spacing:3px; margin-bottom:8px; }
+.hud__route {
+  display:flex; align-items:center; gap:12px; font-size:2rem;
+  color:#00FFAA; letter-spacing:4px; font-weight:700;
+}
+.hud__route-arrow { font-size:1rem; opacity:0.4; }
+.hud__type { font-size:0.8rem; color:rgba(0,255,170,0.35); letter-spacing:3px; margin-top:4px; }
+.hud__data-left, .hud__data-right {
+  position:absolute; top:50%; transform:translateY(-50%);
+  display:flex; flex-direction:column; gap:16px;
+}
+.hud__data-left { left:40px; }
+.hud__data-right { right:40px; text-align:right; }
+.hud__datum { }
+.hud__datum-val { font-size:1.1rem; color:#00FFAA; }
+.hud__datum-lbl { font-size:0.5rem; color:rgba(0,255,170,0.3); letter-spacing:2px; }
+.hud__dir {
+  position:absolute; bottom:30px; font-size:0.7rem;
+  color:#00FFAA; letter-spacing:4px; opacity:0.6;
+  border:1px solid rgba(0,255,170,0.2); padding:4px 16px;
+}
+
+/* ================================================================
+   OPTION C — ATC DATA CARD
+   ================================================================ */
+.atc {
+  background:#0C1018; font-family:'JetBrains Mono', monospace;
+  display:flex; flex-direction:column; padding:24px 32px;
+  position:relative;
+}
+.atc::before {
+  content:''; position:absolute; inset:0;
+  background:
+    repeating-linear-gradient(90deg, transparent, transparent 99px, rgba(59,130,246,0.04) 99px, rgba(59,130,246,0.04) 100px),
+    repeating-linear-gradient(0deg, transparent, transparent 99px, rgba(59,130,246,0.04) 99px, rgba(59,130,246,0.04) 100px);
+  pointer-events:none;
+}
+.atc__header {
+  display:flex; justify-content:space-between; align-items:center;
+  padding-bottom:12px; border-bottom:2px solid #1E3A5C;
+  margin-bottom:16px; position:relative; z-index:1;
+}
+.atc__flight {
+  font-size:1.8rem; font-weight:700; color:#60A5FA; letter-spacing:2px;
+}
+.atc__squawk {
+  font-size:0.7rem; color:#4A6A8A; letter-spacing:2px;
+  border:1px solid #1E3A5C; padding:4px 12px; border-radius:3px;
+}
+.atc__body {
+  flex:1; display:grid; grid-template-columns:1fr 1fr;
+  gap:20px; position:relative; z-index:1;
+}
+.atc__section {
+  display:flex; flex-direction:column; gap:12px;
+}
+.atc__section-title {
+  font-size:0.5rem; color:#3A5A7A; letter-spacing:3px;
+  border-bottom:1px solid #1A2A3C; padding-bottom:4px;
+}
+.atc__field { display:flex; flex-direction:column; gap:2px; }
+.atc__field-label { font-size:0.5rem; color:#3A5A7A; letter-spacing:2px; }
+.atc__field-value { font-size:1rem; color:#E0E8F0; }
+.atc__field-value--lg { font-size:1.6rem; font-weight:700; color:#fff; letter-spacing:3px; }
+.atc__field-value--accent { color:#60A5FA; }
+.atc__route-block {
+  grid-column:1/3; display:flex; align-items:center; justify-content:center;
+  gap:20px; padding:16px 0; border-top:1px solid #1A2A3C;
+  border-bottom:1px solid #1A2A3C;
+}
+.atc__iata { font-size:2.2rem; font-weight:700; color:#fff; letter-spacing:4px; }
+.atc__route-sep {
+  width:100px; height:1px; background:#1E3A5C; position:relative;
+}
+.atc__route-sep::after {
+  content:'▸'; position:absolute; top:-8px; left:50%; transform:translateX(-50%);
+  color:#60A5FA; font-size:0.8rem;
+}
+.atc__strip {
+  grid-column:1/3; display:flex; gap:24px; justify-content:center;
+  padding-top:12px;
+}
+.atc__strip-item { text-align:center; }
+.atc__strip-val { font-size:1.4rem; font-weight:600; color:#60A5FA; }
+.atc__strip-lbl { font-size:0.45rem; color:#3A5A7A; letter-spacing:2px; margin-top:2px; }
+
+/* ================================================================
+   OPTION D — HOLOGRAPHIC PANELS
+   ================================================================ */
+.holo {
+  background:linear-gradient(135deg, #080C1A 0%, #0A1020 50%, #0C0818 100%);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:12px; position:relative; overflow:hidden;
+}
+.holo::before {
+  content:''; position:absolute; inset:0;
+  background:radial-gradient(ellipse at 30% 40%, rgba(59,130,246,0.06) 0%, transparent 60%),
+             radial-gradient(ellipse at 70% 60%, rgba(147,51,234,0.04) 0%, transparent 50%);
+  pointer-events:none;
+}
+.holo__panel {
+  position:relative; z-index:1;
+  background:rgba(15,23,42,0.6); backdrop-filter:blur(12px);
+  border:1px solid rgba(59,130,246,0.15); border-radius:12px;
+  padding:16px 28px;
+  box-shadow:0 0 30px rgba(59,130,246,0.05), inset 0 1px 0 rgba(255,255,255,0.03);
+}
+.holo__panel--main {
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  padding:24px 48px;
+}
+.holo__panel--stats {
+  display:flex; gap:32px;
+}
+.holo__airline {
+  font-family:'Oxanium', sans-serif; font-size:2rem; font-weight:200;
+  color:#E0E8FF; letter-spacing:1px;
+}
+.holo__flight {
+  font-family:'JetBrains Mono', monospace; font-size:0.85rem; font-weight:600;
+  color:#818CF8; letter-spacing:2px;
+}
+.holo__route {
+  display:flex; align-items:center; gap:16px; margin:8px 0;
+}
+.holo__iata {
+  font-family:'JetBrains Mono', monospace; font-size:2rem; font-weight:700;
+  color:#fff; letter-spacing:4px;
+  text-shadow:0 0 20px rgba(99,102,241,0.3);
+}
+.holo__route-glow {
+  width:60px; height:2px;
+  background:linear-gradient(90deg, transparent, #818CF8, transparent);
+  box-shadow:0 0 10px rgba(129,140,248,0.3);
+}
+.holo__type {
+  font-family:'JetBrains Mono', monospace; font-size:0.7rem;
+  color:#64748B; letter-spacing:2px;
+}
+.holo__stat {
+  text-align:center; padding:12px 20px;
+}
+.holo__stat-val {
+  font-family:'JetBrains Mono', monospace; font-size:1.3rem; font-weight:600;
+  color:#C7D2FE;
+}
+.holo__stat-lbl {
+  font-size:0.5rem; color:#4A5568; letter-spacing:2px; margin-top:4px;
+}
+.holo__orb {
+  position:absolute; border-radius:50%; filter:blur(40px); pointer-events:none; opacity:0.4;
+}
+.holo__orb--1 { width:200px; height:200px; background:#3B82F6; top:-60px; right:-40px; }
+.holo__orb--2 { width:150px; height:150px; background:#8B5CF6; bottom:-40px; left:-30px; }
+
+/* ================================================================
+   OPTION E — HEATHROW / BAA SIGNAGE
+   ================================================================ */
+.lhr {
+  background:#FECB00; font-family:'DM Sans', sans-serif;
+  display:flex; flex-direction:column; position:relative;
+  color:#1A1A1A;
+}
+.lhr__header {
+  display:flex; align-items:center; gap:16px;
+  padding:20px 32px 16px; border-bottom:3px solid rgba(0,0,0,0.08);
+}
+.lhr__icon {
+  width:44px; height:44px; background:#1A1A1A; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.2rem; color:#FECB00;
+}
+.lhr__header-text {
+  font-size:1.4rem; font-weight:700; letter-spacing:0.5px;
+}
+.lhr__header-sub {
+  font-size:0.75rem; font-weight:400; color:rgba(0,0,0,0.5);
+  margin-left:auto; letter-spacing:1px;
+}
+.lhr__body {
+  flex:1; display:flex; flex-direction:column; padding:20px 32px;
+  gap:16px;
+}
+.lhr__airline {
+  font-size:2.8rem; font-weight:900; color:#1A1A1A; line-height:1;
+  letter-spacing:-1px;
+}
+.lhr__meta {
+  display:flex; align-items:baseline; gap:12px;
+}
+.lhr__flight {
+  font-family:'JetBrains Mono', monospace; font-size:1.2rem; font-weight:700;
+  color:#1A1A1A; letter-spacing:1px;
+  background:rgba(0,0,0,0.06); padding:4px 12px; border-radius:4px;
+}
+.lhr__type {
+  font-size:0.85rem; font-weight:500; color:rgba(0,0,0,0.45);
+}
+.lhr__route {
+  display:flex; align-items:center; gap:16px;
+  padding:16px 0; border-top:2px solid rgba(0,0,0,0.06);
+  border-bottom:2px solid rgba(0,0,0,0.06);
+}
+.lhr__endpoint { text-align:center; }
+.lhr__iata {
+  font-family:'JetBrains Mono', monospace; font-size:2.8rem; font-weight:900;
+  color:#1A1A1A; letter-spacing:3px; line-height:1;
+}
+.lhr__city {
+  font-size:0.7rem; font-weight:500; color:rgba(0,0,0,0.4);
+  text-transform:uppercase; letter-spacing:1.5px; margin-top:2px;
+}
+.lhr__route-path {
+  flex:1; display:flex; align-items:center; gap:8px;
+}
+.lhr__route-dash { flex:1; height:3px; background:rgba(0,0,0,0.12); border-radius:2px; }
+.lhr__route-icon { font-size:1.4rem; color:#1A1A1A; }
+.lhr__stats {
+  display:flex; gap:0; flex:1;
+}
+.lhr__stat {
+  flex:1; display:flex; flex-direction:column; align-items:center;
+  padding:12px 8px;
+  border-right:2px solid rgba(0,0,0,0.06);
+}
+.lhr__stat:last-child { border-right:none; }
+.lhr__stat-val {
+  font-family:'JetBrains Mono', monospace; font-size:1.6rem; font-weight:700;
+  color:#1A1A1A;
+}
+.lhr__stat-unit {
+  font-size:0.65rem; font-weight:500; color:rgba(0,0,0,0.35);
+  letter-spacing:1px;
+}
+.lhr__stat-lbl {
+  font-size:0.5rem; font-weight:700; color:rgba(0,0,0,0.25);
+  letter-spacing:2px; text-transform:uppercase; margin-top:2px;
+}
+.lhr__footer {
+  display:flex; align-items:center; justify-content:center; gap:16px;
+  padding:10px 32px; background:rgba(0,0,0,0.04);
+}
+.lhr__dir {
+  font-weight:700; font-size:0.85rem; letter-spacing:2px;
+  text-transform:uppercase; background:#1A1A1A; color:#FECB00;
+  padding:4px 16px; border-radius:20px;
+}
+.lhr__compass { font-size:0.8rem; color:rgba(0,0,0,0.4); }
+.lhr__hdg { font-family:'JetBrains Mono', monospace; font-size:0.8rem; color:rgba(0,0,0,0.35); }
+</style>
+</head>
+<body>
+<h1>FlightView — Modern Single-Plane Design Options</h1>
+<div class="options">
+
+<!-- OPTION A: GLASS COCKPIT PFD -->
+<div class="option">
+  <div class="option__label">Option A — Glass Cockpit PFD</div>
+  <div class="card pfd">
+    <div class="pfd__tape pfd__tape--spd">
+      <span class="pfd__tape-label">SPD</span>
+      <div class="pfd__tape-marks">
+        <span class="pfd__tape-val">280</span>
+        <span class="pfd__tape-val">260</span>
+        <span class="pfd__tape-val">240</span>
+        <span class="pfd__tape-cur">220</span>
+        <span class="pfd__tape-val">200</span>
+        <span class="pfd__tape-val">180</span>
+        <span class="pfd__tape-val">160</span>
+      </div>
+    </div>
+    <div class="pfd__center">
+      <span class="pfd__flight">AA 321 · A321</span>
+      <span class="pfd__airline">American</span>
+      <div class="pfd__route">
+        <span class="pfd__iata">DFW</span>
+        <div class="pfd__route-line"></div>
+        <span class="pfd__iata">MIA</span>
+      </div>
+      <div class="pfd__status">
+        <div class="pfd__stat"><span class="pfd__stat-val">1,850</span><br><span class="pfd__stat-lbl">DIST FT</span></div>
+        <div class="pfd__stat"><span class="pfd__stat-val">-1,200</span><br><span class="pfd__stat-lbl">VS FPM</span></div>
+      </div>
+    </div>
+    <div class="pfd__tape pfd__tape--alt">
+      <span class="pfd__tape-label">ALT</span>
+      <div class="pfd__tape-marks">
+        <span class="pfd__tape-val">5800</span>
+        <span class="pfd__tape-val">5200</span>
+        <span class="pfd__tape-val">4800</span>
+        <span class="pfd__tape-cur">4475</span>
+        <span class="pfd__tape-val">4100</span>
+        <span class="pfd__tape-val">3600</span>
+        <span class="pfd__tape-val">3200</span>
+      </div>
+    </div>
+    <div class="pfd__heading">
+      <span class="pfd__hdg-label">HDG</span>
+      <div class="pfd__hdg-marks">
+        <span class="pfd__hdg-val">200</span>
+        <span class="pfd__hdg-val">210</span>
+        <span class="pfd__hdg-val">220</span>
+        <span class="pfd__hdg-cur">235°</span>
+        <span class="pfd__hdg-val">250</span>
+        <span class="pfd__hdg-val">260</span>
+        <span class="pfd__hdg-val">270</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OPTION B: HUD OVERLAY -->
+<div class="option">
+  <div class="option__label">Option B — HUD Overlay</div>
+  <div class="card hud">
+    <div class="hud__bracket-tl"></div>
+    <div class="hud__bracket-tr"></div>
+    <div class="hud__bracket-bl"></div>
+    <div class="hud__bracket-br"></div>
+    <div class="hud__data-left">
+      <div class="hud__datum"><span class="hud__datum-val">220</span><br><span class="hud__datum-lbl">KNOTS</span></div>
+      <div class="hud__datum"><span class="hud__datum-val">-1200</span><br><span class="hud__datum-lbl">VS FPM</span></div>
+    </div>
+    <div class="hud__center">
+      <div class="hud__crosshair"></div>
+      <span class="hud__flight">AA 321</span>
+      <span class="hud__airline">AMERICAN</span>
+      <div class="hud__route">
+        <span>DFW</span>
+        <span class="hud__route-arrow">▸▸▸</span>
+        <span>MIA</span>
+      </div>
+      <span class="hud__type">AIRBUS A321</span>
+    </div>
+    <div class="hud__data-right">
+      <div class="hud__datum"><span class="hud__datum-val">4475</span><br><span class="hud__datum-lbl">FEET</span></div>
+      <div class="hud__datum"><span class="hud__datum-val">1850</span><br><span class="hud__datum-lbl">DIST FT</span></div>
+    </div>
+    <span class="hud__dir">APPROACHING · 235° · FROM SW</span>
+  </div>
+</div>
+
+<!-- OPTION C: ATC DATA CARD -->
+<div class="option">
+  <div class="option__label">Option C — ATC Data Card</div>
+  <div class="card atc">
+    <div class="atc__header">
+      <span class="atc__flight">AA 321</span>
+      <span class="atc__squawk">AIRBUS A321 · N12345</span>
+    </div>
+    <div class="atc__body">
+      <div class="atc__section">
+        <span class="atc__section-title">OPERATOR</span>
+        <div class="atc__field">
+          <span class="atc__field-label">AIRLINE</span>
+          <span class="atc__field-value atc__field-value--lg">American</span>
+        </div>
+        <div class="atc__field">
+          <span class="atc__field-label">STATUS</span>
+          <span class="atc__field-value atc__field-value--accent">APPROACHING</span>
+        </div>
+        <div class="atc__field">
+          <span class="atc__field-label">HEADING</span>
+          <span class="atc__field-value">235° from SW</span>
+        </div>
+      </div>
+      <div class="atc__route-block">
+        <span class="atc__iata">DFW</span>
+        <div class="atc__route-sep"></div>
+        <span class="atc__iata">MIA</span>
+      </div>
+      <div class="atc__strip">
+        <div class="atc__strip-item"><span class="atc__strip-val">4,475</span><br><span class="atc__strip-lbl">ALTITUDE FT</span></div>
+        <div class="atc__strip-item"><span class="atc__strip-val">220</span><br><span class="atc__strip-lbl">SPEED KTS</span></div>
+        <div class="atc__strip-item"><span class="atc__strip-val">1,850</span><br><span class="atc__strip-lbl">DISTANCE FT</span></div>
+        <div class="atc__strip-item"><span class="atc__strip-val">-1,200</span><br><span class="atc__strip-lbl">VERT SPD FPM</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OPTION D: HOLOGRAPHIC PANELS -->
+<div class="option">
+  <div class="option__label">Option D — Holographic Panels</div>
+  <div class="card holo">
+    <div class="holo__orb holo__orb--1"></div>
+    <div class="holo__orb holo__orb--2"></div>
+    <div class="holo__panel holo__panel--main">
+      <span class="holo__flight">AA 321 · A321</span>
+      <span class="holo__airline">American</span>
+      <div class="holo__route">
+        <span class="holo__iata">DFW</span>
+        <div class="holo__route-glow"></div>
+        <span class="holo__iata">MIA</span>
+      </div>
+      <span class="holo__type">APPROACHING · 235° · FROM SW</span>
+    </div>
+    <div class="holo__panel holo__panel--stats">
+      <div class="holo__stat"><span class="holo__stat-val">4,475</span><br><span class="holo__stat-lbl">ALTITUDE FT</span></div>
+      <div class="holo__stat"><span class="holo__stat-val">220</span><br><span class="holo__stat-lbl">SPEED KTS</span></div>
+      <div class="holo__stat"><span class="holo__stat-val">1,850</span><br><span class="holo__stat-lbl">DISTANCE FT</span></div>
+      <div class="holo__stat"><span class="holo__stat-val">-1,200</span><br><span class="holo__stat-lbl">VS FPM</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- OPTION E: HEATHROW / BAA SIGNAGE -->
+<div class="option">
+  <div class="option__label">Option E — Heathrow Airport Signage</div>
+  <div class="card lhr">
+    <div class="lhr__header">
+      <div class="lhr__icon">✈</div>
+      <span class="lhr__header-text">Overhead Flight</span>
+      <span class="lhr__header-sub">3 nearby</span>
+    </div>
+    <div class="lhr__body">
+      <span class="lhr__airline">American</span>
+      <div class="lhr__meta">
+        <span class="lhr__flight">AA 321</span>
+        <span class="lhr__type">Airbus A321 · N12345</span>
+      </div>
+      <div class="lhr__route">
+        <div class="lhr__endpoint">
+          <span class="lhr__iata">DFW</span>
+          <span class="lhr__city">Dallas</span>
+        </div>
+        <div class="lhr__route-path">
+          <span class="lhr__route-dash"></span>
+          <span class="lhr__route-icon">✈</span>
+          <span class="lhr__route-dash"></span>
+        </div>
+        <div class="lhr__endpoint">
+          <span class="lhr__iata">MIA</span>
+          <span class="lhr__city">Miami</span>
+        </div>
+      </div>
+      <div class="lhr__stats">
+        <div class="lhr__stat"><span class="lhr__stat-val">4,475</span><span class="lhr__stat-unit"> ft</span><br><span class="lhr__stat-lbl">Altitude</span></div>
+        <div class="lhr__stat"><span class="lhr__stat-val">220</span><span class="lhr__stat-unit"> kts</span><br><span class="lhr__stat-lbl">Speed</span></div>
+        <div class="lhr__stat"><span class="lhr__stat-val">1,850</span><span class="lhr__stat-unit"> ft</span><br><span class="lhr__stat-lbl">Distance</span></div>
+        <div class="lhr__stat"><span class="lhr__stat-val">-1,200</span><span class="lhr__stat-unit"> fpm</span><br><span class="lhr__stat-lbl">Vert Spd</span></div>
+      </div>
+    </div>
+    <div class="lhr__footer">
+      <span class="lhr__dir">Approaching</span>
+      <span class="lhr__compass">from SW</span>
+      <span class="lhr__hdg">235°</span>
+    </div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

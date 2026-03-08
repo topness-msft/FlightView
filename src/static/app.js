@@ -517,30 +517,29 @@
 
     function padRight(s, n) { while (s.length < n) s = s + " "; return s.substring(0, n); }
 
-    // ── Modern Single Renderer ────────────────────
+    // ── Modern Single Renderer (Heathrow signage) ──
     function updateModernSingle(a, count) {
         MD.badge.textContent = a.flight_display || a.callsign_raw || "—";
         MD.count.textContent = count + " nearby";
-        MD.airline.textContent = a.airline || "Unknown";
-        MD.type.textContent = a.aircraft_type || "Unknown Aircraft";
-        MD.reg.textContent = a.registration || "";
+        MD.airline.textContent = shortAirline(a.airline) || "Unknown";
+        MD.type.textContent = a.aircraft_type || "";
+        MD.reg.textContent = a.registration ? "· " + a.registration : "";
 
         if (a.route_origin && a.route_destination) {
-            MD.routeRow.classList.remove("no-route");
+            MD.routeRow.style.display = "";
             MD.origin.textContent = a.route_origin;
             MD.dest.textContent = a.route_destination;
         } else {
-            MD.routeRow.classList.add("no-route");
+            MD.routeRow.style.display = "none";
         }
 
-        MD.alt.textContent = fmtU(a.altitude_ft, "ft");
-        MD.spd.textContent = fmtU(a.velocity_kts, "kts");
-        MD.dist.textContent = fmtU(a.distance_ft, "ft");
-        MD.vrate.textContent = fmtSigned(a.vertical_rate_fpm) + " fpm";
+        MD.alt.textContent = (a.altitude_ft != null && !isNaN(a.altitude_ft)) ? Math.round(a.altitude_ft).toLocaleString("en-US") : "—";
+        MD.spd.textContent = (a.velocity_kts != null && !isNaN(a.velocity_kts)) ? Math.round(a.velocity_kts).toLocaleString("en-US") : "—";
+        MD.dist.textContent = (a.distance_ft != null && !isNaN(a.distance_ft)) ? Math.round(a.distance_ft).toLocaleString("en-US") : "—";
+        MD.vrate.textContent = (a.vertical_rate_fpm != null && !isNaN(a.vertical_rate_fpm)) ? fmtSigned(a.vertical_rate_fpm) : "—";
 
         var d = (a.direction || "").toLowerCase();
         MD.dir.textContent = d ? d.charAt(0).toUpperCase() + d.slice(1) : "—";
-        MD.dir.className = "md-dir " + dirCls(d);
         MD.compass.textContent = a.compass ? "from " + a.compass : "";
         MD.hdg.textContent = a.heading != null ? fmt(a.heading) + "°" : "";
     }
