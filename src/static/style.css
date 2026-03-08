@@ -321,10 +321,19 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     background:rgba(8,8,6,0.35); pointer-events:none;
 }
 
+.cl-strip__left {
+    display:flex; flex-direction:column; justify-self:start;
+    position:relative; z-index:1;
+}
 .cl-strip__flight {
     font-family:var(--mono); font-size:1.2rem; font-weight:700;
-    color:var(--cl-amber); letter-spacing:1px; justify-self:start;
-    position:relative; z-index:1; white-space:nowrap;
+    color:var(--cl-amber); letter-spacing:1px;
+    white-space:nowrap;
+}
+.cl-strip__airline {
+    font-size:0.6rem; font-weight:400; color:var(--cl-dk-gray);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    max-width:100%; line-height:1.2;
 }
 .cl-strip__orig {
     font-family:var(--mono); font-size:1.2rem; font-weight:700;
@@ -551,10 +560,18 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     animation: rowIn 0.3s ease-out;
 }
 
+/* Left: flight code + airline stacked */
+.md-li__left {
+    display:flex; flex-direction:column; justify-self:start;
+}
 .md-li__flight {
     font-family:var(--mono); font-size:1.2rem; font-weight:700;
-    color:var(--md-blue-bright); letter-spacing:0.5px;
-    justify-self:start; white-space:nowrap;
+    color:var(--md-blue-bright); letter-spacing:0.5px; white-space:nowrap;
+}
+.md-li__airline {
+    font-size:0.6rem; font-weight:400; color:var(--md-muted);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    max-width:100%; line-height:1.2;
 }
 .md-li__orig {
     font-family:var(--mono); font-size:1.2rem; font-weight:700;

@@ -159,6 +159,7 @@
     function fmt(v) { return (v == null || isNaN(v)) ? "—" : String(Math.round(v)); }
     function fmtU(v, u) { return (v == null || isNaN(v)) ? "—" : Math.round(v).toLocaleString("en-US") + " " + u; }
     function fmtSigned(v) { if (v == null || isNaN(v)) return " ---"; var n = Math.round(v); return (n >= 0 ? "+" : "") + n; }
+    function shortAirline(s) { return (s || "").replace(/\s*Airlines?\s*/gi, " ").replace(/\s*Air Lines?\s*/gi, " ").trim(); }
     function pad(s, n) { while (s.length < n) s = " " + s; return s; }
     function dirCls(d) { d = (d || "").toLowerCase(); return (d === "approaching" || d === "departing" || d === "overhead") ? d : ""; }
 
@@ -265,8 +266,12 @@
         var card = document.createElement("div");
         card.className = "cl-strip " + dirCls(d);
 
+        var left = document.createElement("div"); left.className = "cl-strip__left";
         var fl = document.createElement("span"); fl.className = "cl-strip__flight";
         fl.textContent = ac.flight_display || ac.callsign || "???";
+        var al = document.createElement("span"); al.className = "cl-strip__airline";
+        al.textContent = shortAirline(ac.airline);
+        left.appendChild(fl); left.appendChild(al);
 
         var orig = document.createElement("span"); orig.className = "cl-strip__orig";
         orig.textContent = ac.route_origin || "";
@@ -285,7 +290,7 @@
         stats.innerHTML = '<span class="cl-strip-stat__val">' + fmt(ac.altitude_ft) + ' <span class="cl-strip-stat__unit">FT</span></span>'
             + '<span class="cl-strip-stat__val">' + fmt(ac.distance_ft) + ' <span class="cl-strip-stat__unit">FT</span></span>';
 
-        card.appendChild(fl); card.appendChild(orig); card.appendChild(arrow);
+        card.appendChild(left); card.appendChild(orig); card.appendChild(arrow);
         card.appendChild(dest); card.appendChild(tp); card.appendChild(stats);
         return card;
     }
@@ -393,8 +398,12 @@
             var ac = list[i];
             var item = document.createElement("div"); item.className = "md-list-item";
 
+            var left = document.createElement("div"); left.className = "md-li__left";
             var fl = document.createElement("span"); fl.className = "md-li__flight";
             fl.textContent = ac.flight_display || ac.callsign || ac.icao24;
+            var al = document.createElement("span"); al.className = "md-li__airline";
+            al.textContent = shortAirline(ac.airline);
+            left.appendChild(fl); left.appendChild(al);
 
             var orig = document.createElement("span"); orig.className = "md-li__orig";
             orig.textContent = ac.route_origin || "";
@@ -415,7 +424,7 @@
             stats.innerHTML = '<span class="md-li__stat">' + fmt(ac.altitude_ft) + ' <span class="md-li__unit">ft</span></span>'
                 + '<span class="md-li__stat">' + fmt(ac.distance_ft) + ' <span class="md-li__unit">ft</span></span>';
 
-            item.appendChild(fl); item.appendChild(orig); item.appendChild(arrow);
+            item.appendChild(left); item.appendChild(orig); item.appendChild(arrow);
             item.appendChild(dest); item.appendChild(tp);
             item.appendChild(stats);
             frag.appendChild(item);
