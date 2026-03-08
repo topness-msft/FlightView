@@ -34,15 +34,9 @@
         count: document.getElementById("cl-s-count"),
         conn: document.getElementById("cl-s-conn"),
         airline: document.getElementById("cl-airline-flaps"),
-        type: document.getElementById("cl-type"),
-        reg: document.getElementById("cl-reg"),
+        typeFlaps: document.getElementById("cl-type-flaps"),
         routeRow: document.getElementById("cl-route-row"),
-        origin: document.getElementById("cl-origin"),
-        dest: document.getElementById("cl-dest"),
-        alt: document.getElementById("cl-alt"),
-        spd: document.getElementById("cl-spd"),
-        dist: document.getElementById("cl-dist"),
-        vs: document.getElementById("cl-vs"),
+        routeDm: document.getElementById("cl-route-dotmatrix"),
         dir: document.getElementById("cl-dir"),
         compass: document.getElementById("cl-compass"),
         hdg: document.getElementById("cl-hdg"),
@@ -169,26 +163,241 @@
         }
     }
 
+    // ── LED Dot-Matrix Engine ──────────────────────
+    // 5×7 pixel font — each char is [row0..row6], each row is 5 bits (MSB=left)
+    var DOT_FONT = {
+        "A":[14,17,17,31,17,17,17],"B":[30,17,17,30,17,17,30],"C":[14,17,16,16,16,17,14],
+        "D":[28,18,17,17,17,18,28],"E":[31,16,16,30,16,16,31],"F":[31,16,16,30,16,16,16],
+        "G":[14,17,16,23,17,17,14],"H":[17,17,17,31,17,17,17],"I":[14,4,4,4,4,4,14],
+        "J":[7,2,2,2,2,18,12],"K":[17,18,20,24,20,18,17],"L":[16,16,16,16,16,16,31],
+        "M":[17,27,21,21,17,17,17],"N":[17,25,21,19,17,17,17],"O":[14,17,17,17,17,17,14],
+        "P":[30,17,17,30,16,16,16],"Q":[14,17,17,17,21,18,13],"R":[30,17,17,30,20,18,17],
+        "S":[14,17,16,14,1,17,14],"T":[31,4,4,4,4,4,4],"U":[17,17,17,17,17,17,14],
+        "V":[17,17,17,17,10,10,4],"W":[17,17,17,21,21,21,10],"X":[17,17,10,4,10,17,17],
+        "Y":[17,17,10,4,4,4,4],"Z":[31,1,2,4,8,16,31],
+        "0":[14,17,19,21,25,17,14],"1":[4,12,4,4,4,4,14],"2":[14,17,1,2,4,8,31],
+        "3":[31,2,4,2,1,17,14],"4":[2,6,10,18,31,2,2],"5":[31,16,30,1,1,17,14],
+        "6":[6,8,16,30,17,17,14],"7":[31,1,2,4,8,8,8],"8":[14,17,17,14,17,17,14],
+        "9":[14,17,17,15,1,2,12],
+        " ":[0,0,0,0,0,0,0],"-":[0,0,0,14,0,0,0],"/":[1,2,2,4,8,8,16],
+        "+":[0,4,4,31,4,4,0],".":[0,0,0,0,0,0,4],
+    };
+
+    var _dotMatrixCache = {};
+
+    function renderDotMatrix(container, line1, line2) {
+        var key = line1 + "|" + line2;
+        if (_dotMatrixCache[container.id] === key) return;
+        _dotMatrixCache[container.id] = key;
+
+        container.innerHTML = "";
+        var panel = document.createElement("div");
+        panel.className = "dm-panel";
+        panel.appendChild(buildDotLine(line1));
+        panel.appendChild(buildDotLine(line2));
+        container.appendChild(panel);
+    }
+
+    function buildDotLine(text) {
+        var row = document.createElement("div");
+        row.className = "dm-line";
+        text = text.toUpperCase();
+        for (var c = 0; c < text.length; c++) {
+            var ch = text[c];
+            var glyph = DOT_FONT[ch] || DOT_FONT[" "];
+            var charEl = document.createElement("div");
+            charEl.className = "dm-char";
+            for (var r = 0; r < 7; r++) {
+                var bits = glyph[r];
+                for (var b = 4; b >= 0; b--) {
+                    var dot = document.createElement("span");
+                    dot.className = (bits >> b) & 1 ? "dm-dot dm-on" : "dm-dot";
+                    charEl.appendChild(dot);
+                }
+            }
+            row.appendChild(charEl);
+            // gap between chars
+            if (c < text.length - 1) {
+                var gap = document.createElement("div");
+                gap.className = "dm-gap";
+                row.appendChild(gap);
+            }
+        }
+        return row;
+    }
+
+    // ── Vintage Gauge Engine ─────────────────────────
+    var GAUGE_SWEEP = 270; // degrees of arc
+    var GAUGE_START = -135; // degrees from 12 o'clock
+    var SVG_NS = "http://www.w3.org/2000/svg";
+
+    var gaugeConfigs = {
+        "cl-gauge-alt":  { label:"ALTITUDE", unit:"FEET",  min:0, max:45000, majors:[0,5,10,15,20,25,30,35,40,45], divisor:1000 },
+        "cl-gauge-spd":  { label:"AIRSPEED", unit:"KNOTS", min:0, max:400,   majors:[0,50,100,150,200,250,300,350,400], divisor:1 },
+        "cl-gauge-dist": { label:"DISTANCE", unit:"FEET",  min:0, max:15000, majors:[0,3,6,9,12,15], divisor:1000 },
+        "cl-gauge-vs":   { label:"VERT SPD", unit:"FT/MIN",min:-6000, max:6000, majors:[-6,-3,0,3,6], divisor:1000 },
+    };
+
+    function buildGaugeSVG(cfg) {
+        var svg = document.createElementNS(SVG_NS, "svg");
+        svg.setAttribute("viewBox", "0 0 200 200");
+        svg.setAttribute("class", "cl-gauge__svg");
+
+        // Bezel — outer ring with gradient effect
+        addCircle(svg, 100, 100, 97, "none", "#1A1D24", 6);
+        addCircle(svg, 100, 100, 94, "none", "#2A2D34", 1);
+
+        // Face — dark navy
+        addCircle(svg, 100, 100, 88, "#1C2030", "none", 0);
+
+        // Inner shadow ring
+        addCircle(svg, 100, 100, 88, "none", "rgba(0,0,0,0.3)", 2);
+
+        // Tick marks
+        var minorCount = (cfg.majors.length - 1) * 5;
+        for (var i = 0; i <= minorCount; i++) {
+            var frac = i / minorCount;
+            var ang = (GAUGE_START + frac * GAUGE_SWEEP) * Math.PI / 180;
+            var isMajor = (i % 5 === 0);
+            var r1 = isMajor ? 72 : 78;
+            var r2 = 85;
+            var x1 = 100 + r1 * Math.sin(ang), y1 = 100 - r1 * Math.cos(ang);
+            var x2 = 100 + r2 * Math.sin(ang), y2 = 100 - r2 * Math.cos(ang);
+            var line = document.createElementNS(SVG_NS, "line");
+            line.setAttribute("x1", x1); line.setAttribute("y1", y1);
+            line.setAttribute("x2", x2); line.setAttribute("y2", y2);
+            line.setAttribute("stroke", isMajor ? "#D4C9A8" : "#6B6555");
+            line.setAttribute("stroke-width", isMajor ? "2" : "1");
+            svg.appendChild(line);
+        }
+
+        // Number labels at major ticks
+        for (var m = 0; m < cfg.majors.length; m++) {
+            var mfrac = m / (cfg.majors.length - 1);
+            var mang = (GAUGE_START + mfrac * GAUGE_SWEEP) * Math.PI / 180;
+            var lr = 62;
+            var tx = 100 + lr * Math.sin(mang);
+            var ty = 100 - lr * Math.cos(mang);
+            var txt = document.createElementNS(SVG_NS, "text");
+            txt.setAttribute("x", tx); txt.setAttribute("y", ty);
+            txt.setAttribute("text-anchor", "middle");
+            txt.setAttribute("dominant-baseline", "central");
+            txt.setAttribute("class", "cl-gauge__num");
+            txt.textContent = cfg.majors[m];
+            svg.appendChild(txt);
+        }
+
+        // Triangle index marker at 12 o'clock
+        var tri = document.createElementNS(SVG_NS, "polygon");
+        tri.setAttribute("points", "100,14 97,20 103,20");
+        tri.setAttribute("fill", "#D4C9A8");
+        svg.appendChild(tri);
+
+        // Unit label
+        var unitTxt = document.createElementNS(SVG_NS, "text");
+        unitTxt.setAttribute("x", 100); unitTxt.setAttribute("y", 128);
+        unitTxt.setAttribute("text-anchor", "middle");
+        unitTxt.setAttribute("class", "cl-gauge__unit-label");
+        unitTxt.textContent = cfg.unit;
+        svg.appendChild(unitTxt);
+
+        // Needle (will be rotated via transform)
+        var needleG = document.createElementNS(SVG_NS, "g");
+        needleG.setAttribute("class", "cl-gauge__needle-g");
+        // Needle body
+        var needle = document.createElementNS(SVG_NS, "line");
+        needle.setAttribute("x1", 100); needle.setAttribute("y1", 105);
+        needle.setAttribute("x2", 100); needle.setAttribute("y2", 22);
+        needle.setAttribute("stroke", "#D4C9A8");
+        needle.setAttribute("stroke-width", "2.5");
+        needle.setAttribute("stroke-linecap", "round");
+        needleG.appendChild(needle);
+        // Center cap
+        addCircle(needleG, 100, 100, 6, "#3A3530", "#D4C9A8", 1.5);
+        // Small center dot (like the red dot in the reference)
+        addCircle(needleG, 100, 100, 2.5, "#C45030", "none", 0);
+        svg.appendChild(needleG);
+
+        // Mounting screws (4 corners)
+        var screwPositions = [[16,16],[184,16],[16,184],[184,184]];
+        for (var s = 0; s < screwPositions.length; s++) {
+            addCircle(svg, screwPositions[s][0], screwPositions[s][1], 5, "#1A1D24", "#2A2D34", 1);
+            // Phillips cross
+            var sx = screwPositions[s][0], sy = screwPositions[s][1];
+            addScrewLine(svg, sx-2.5, sy, sx+2.5, sy);
+            addScrewLine(svg, sx, sy-2.5, sx, sy+2.5);
+        }
+
+        return svg;
+    }
+
+    function addCircle(parent, cx, cy, r, fill, stroke, sw) {
+        var c = document.createElementNS(SVG_NS, "circle");
+        c.setAttribute("cx", cx); c.setAttribute("cy", cy); c.setAttribute("r", r);
+        c.setAttribute("fill", fill || "none");
+        if (stroke && stroke !== "none") { c.setAttribute("stroke", stroke); c.setAttribute("stroke-width", sw); }
+        parent.appendChild(c);
+    }
+
+    function addScrewLine(svg, x1, y1, x2, y2) {
+        var l = document.createElementNS(SVG_NS, "line");
+        l.setAttribute("x1", x1); l.setAttribute("y1", y1);
+        l.setAttribute("x2", x2); l.setAttribute("y2", y2);
+        l.setAttribute("stroke", "#3A3D44"); l.setAttribute("stroke-width", "0.8");
+        svg.appendChild(l);
+    }
+
+    // Build gauges on init
+    for (var gid in gaugeConfigs) {
+        var container = document.getElementById(gid);
+        if (!container) continue;
+        var gsvg = buildGaugeSVG(gaugeConfigs[gid]);
+        // Numeric readout overlay
+        var readout = document.createElement("div");
+        readout.className = "cl-gauge__readout";
+        readout.innerHTML = '<span class="cl-gauge__val">—</span>';
+        container.appendChild(gsvg);
+        container.appendChild(readout);
+    }
+
+    function setGauge(id, value) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var cfg = gaugeConfigs[id];
+        var clamped = Math.max(cfg.min, Math.min(cfg.max, value || 0));
+        var frac = (clamped - cfg.min) / (cfg.max - cfg.min);
+        var angle = GAUGE_START + frac * GAUGE_SWEEP;
+        var needleG = el.querySelector(".cl-gauge__needle-g");
+        if (needleG) needleG.setAttribute("transform", "rotate(" + angle + " 100 100)");
+        var valEl = el.querySelector(".cl-gauge__val");
+        if (valEl) valEl.textContent = Math.round(value || 0).toLocaleString("en-US");
+    }
+
     // ── Classic Single Renderer ───────────────────
     function updateClassicSingle(a, count) {
         CL.flight.textContent = a.flight_display || a.callsign_raw || "—";
         CL.count.textContent = count + " NEARBY";
         updateFlaps(CL.airline, (a.airline || "UNKNOWN").toUpperCase(), "flaps--xl");
-        CL.type.textContent = a.aircraft_type || "Unknown Aircraft";
-        CL.reg.textContent = a.registration || "";
 
+        // Split-flap: flight code + type code
+        var flightCode = a.flight_display || a.callsign_raw || "";
+        var tc = a.aircraft_type || "";
+        var codeParts = tc.split(" ");
+        var typeCode = codeParts.length > 1 ? codeParts[codeParts.length - 1] : tc;
+        updateFlaps(CL.typeFlaps, (flightCode + "  " + typeCode).toUpperCase(), "flaps--xl");
+
+        // Dot-matrix: route
         if (a.route_origin && a.route_destination) {
             CL.routeRow.classList.remove("no-route");
-            updateFlaps(CL.origin, a.route_origin.toUpperCase(), "flaps--lg");
-            updateFlaps(CL.dest, a.route_destination.toUpperCase(), "flaps--lg");
+            renderDotMatrix(CL.routeDm, a.route_origin + "  -  " + a.route_destination, "");
         } else {
             CL.routeRow.classList.add("no-route");
         }
 
-        updateFlaps(CL.alt, pad(fmt(a.altitude_ft), 4), "flaps--sm");
-        updateFlaps(CL.spd, pad(fmt(a.velocity_kts), 3), "flaps--sm");
-        updateFlaps(CL.dist, pad(fmt(a.distance_ft), 4), "flaps--sm");
-        updateFlaps(CL.vs, pad(fmtSigned(a.vertical_rate_fpm), 5), "flaps--sm");
+        setGauge("cl-gauge-alt", a.altitude_ft);
+        setGauge("cl-gauge-spd", a.velocity_kts);
+        setGauge("cl-gauge-dist", a.distance_ft);
+        setGauge("cl-gauge-vs", a.vertical_rate_fpm);
 
         var d = (a.direction || "").toLowerCase();
         CL.dir.textContent = d ? d.toUpperCase() : "—";

@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=22">
+    <link rel="stylesheet" href="/static/style.css?v=26">
 </head>
 <body>
 
@@ -66,26 +66,16 @@
                 <div id="cl-airline-flaps" class="flaps flaps--xl"></div>
             </div>
             <div class="cl-card__row cl-card__row--type">
-                <span id="cl-type" class="cl-card__type">—</span>
-                <span id="cl-reg" class="cl-card__reg"></span>
+                <div id="cl-type-flaps" class="flaps flaps--xl"></div>
             </div>
             <div class="cl-card__row cl-card__row--route" id="cl-route-row">
-                <div id="cl-origin" class="flaps flaps--lg"></div>
-                <div class="cl-route-path">
-                    <span class="cl-route-path__dash"></span>
-                    <span class="cl-route-path__icon">✈</span>
-                    <span class="cl-route-path__dash"></span>
-                </div>
-                <div id="cl-dest" class="flaps flaps--lg"></div>
+                <div id="cl-route-dotmatrix" class="cl-dotmatrix"></div>
             </div>
-            <div class="cl-card__row cl-card__row--telem">
-                <div class="cl-telem"><div id="cl-alt" class="flaps flaps--sm"></div><span class="cl-telem__u">ft</span><span class="cl-telem__l">ALT</span></div>
-                <div class="cl-telem__sep"></div>
-                <div class="cl-telem"><div id="cl-spd" class="flaps flaps--sm"></div><span class="cl-telem__u">kts</span><span class="cl-telem__l">GS</span></div>
-                <div class="cl-telem__sep"></div>
-                <div class="cl-telem"><div id="cl-dist" class="flaps flaps--sm"></div><span class="cl-telem__u">ft</span><span class="cl-telem__l">DIST</span></div>
-                <div class="cl-telem__sep"></div>
-                <div class="cl-telem"><div id="cl-vs" class="flaps flaps--sm"></div><span class="cl-telem__u">fpm</span><span class="cl-telem__l">VS</span></div>
+            <div class="cl-card__row cl-card__row--gauges">
+                <div class="cl-gauge" id="cl-gauge-alt"></div>
+                <div class="cl-gauge" id="cl-gauge-spd"></div>
+                <div class="cl-gauge" id="cl-gauge-dist"></div>
+                <div class="cl-gauge" id="cl-gauge-vs"></div>
             </div>
             <div class="cl-card__row cl-card__row--status">
                 <span id="cl-dir" class="cl-dir">—</span>
@@ -206,6 +196,6 @@
     </div>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="/static/app.js?v=22"></script>
+    <script src="/static/app.js?v=26"></script>
 </body>
 </html>
