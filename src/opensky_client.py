@@ -64,7 +64,12 @@ class OpenSkyClient:
         on the ground or have no position data. Returns an empty list on
         HTTP errors.
         """
-        lamin, lamax, lomin, lomax = self.bbox
+        # Rebuild bbox each call so config changes take effect
+        lamin, lamax, lomin, lomax = build_bounding_box(
+            self.config.HOME_LAT,
+            self.config.HOME_LON,
+            self.config.RADAR_RADIUS_FT,
+        )
         params = {
             "lamin": lamin,
             "lamax": lamax,
