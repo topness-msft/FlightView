@@ -2,66 +2,201 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=800, height=480, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>FlightView</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css?v=19">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>✈ FlightView</h1>
-            <span id="nearby-count" class="nearby-badge">0 nearby</span>
-        </header>
 
-        <main id="flight-display">
-            <!-- Flight card rendered here when aircraft are nearby -->
-            <div id="flight-card" class="flight-card hidden">
-                <div class="card-header">
-                    <span id="airline-name" class="airline-name">—</span>
-                    <span id="flight-number" class="flight-number">—</span>
-                </div>
-                <div class="card-body">
-                    <div class="aircraft-type" id="aircraft-type">—</div>
-                    <div class="route" id="route">
-                        <span id="route-origin">—</span>
-                        <span class="route-arrow">→</span>
-                        <span id="route-dest">—</span>
-                    </div>
-                    <div class="stats">
-                        <div class="stat">
-                            <span class="stat-label">ALT</span>
-                            <span class="stat-value" id="altitude">—</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-label">SPD</span>
-                            <span class="stat-value" id="speed">—</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-label">DIST</span>
-                            <span class="stat-value" id="distance">—</span>
-                        </div>
-                    </div>
-                    <div class="direction-row">
-                        <span id="direction" class="direction-badge">—</span>
-                        <span id="compass" class="compass">—</span>
-                    </div>
-                </div>
+    <!-- ========== NAVIGATION (always visible) ========== -->
+    <nav class="nav" id="nav">
+        <button class="nav__theme" id="btn-theme">CLASSIC</button>
+        <button class="nav__cfg" id="btn-config">⚙</button>
+    </nav>
+
+    <!-- ========== CLASSIC: MULTI-PLANE (departure board) ========== -->
+    <div class="screen" id="screen-classic-multi">
+        <header class="cl-hdr">
+            <span class="cl-hdr__title">FLIGHTVIEW</span>
+            <div class="cl-hdr__right">
+                <span id="cl-m-count" class="cl-hdr__count">0 AIRCRAFT</span>
+                <span id="cl-m-conn" class="hdr-conn"></span>
             </div>
+        </header>
+        <div class="cl-board" id="cl-board"></div>
+        <div class="cl-board-empty" id="cl-board-empty">
+            <div class="cl-scan">
+                <div class="cl-scan__ring cl-scan__ring--1"></div>
+                <div class="cl-scan__ring cl-scan__ring--2"></div>
+                <div class="cl-scan__ring cl-scan__ring--3"></div>
+                <div class="cl-scan__arm"></div>
+                <div class="cl-scan__center"></div>
+            </div>
+            <span class="cl-scan__text">SCANNING</span>
+        </div>
+    </div>
 
-            <!-- Shown when no aircraft are nearby -->
-            <div id="empty-state" class="empty-state">
-                <div class="empty-icon">✈️</div>
-                <p>No aircraft nearby</p>
+    <!-- ========== CLASSIC: SINGLE-PLANE (flight card) ========== -->
+    <div class="screen" id="screen-classic-single">
+        <header class="cl-hdr">
+            <div class="cl-hdr__left">
+                <span class="cl-hdr__diamond">◆</span>
+                <span id="cl-s-flight" class="cl-hdr__flight">—</span>
+            </div>
+            <div class="cl-hdr__right">
+                <span id="cl-s-count" class="cl-hdr__count">0 NEARBY</span>
+                <span id="cl-s-conn" class="hdr-conn"></span>
+            </div>
+        </header>
+        <main class="cl-card">
+            <div class="cl-card__row cl-card__row--airline">
+                <div id="cl-airline-flaps" class="flaps flaps--xl"></div>
+            </div>
+            <div class="cl-card__row cl-card__row--type">
+                <span id="cl-type" class="cl-card__type">—</span>
+                <span id="cl-reg" class="cl-card__reg"></span>
+            </div>
+            <div class="cl-card__row cl-card__row--route" id="cl-route-row">
+                <div id="cl-origin" class="flaps flaps--lg"></div>
+                <div class="cl-route-path">
+                    <span class="cl-route-path__dash"></span>
+                    <span class="cl-route-path__icon">✈</span>
+                    <span class="cl-route-path__dash"></span>
+                </div>
+                <div id="cl-dest" class="flaps flaps--lg"></div>
+            </div>
+            <div class="cl-card__row cl-card__row--telem">
+                <div class="cl-telem"><div id="cl-alt" class="flaps flaps--sm"></div><span class="cl-telem__u">ft</span><span class="cl-telem__l">ALT</span></div>
+                <div class="cl-telem__sep"></div>
+                <div class="cl-telem"><div id="cl-spd" class="flaps flaps--sm"></div><span class="cl-telem__u">kts</span><span class="cl-telem__l">GS</span></div>
+                <div class="cl-telem__sep"></div>
+                <div class="cl-telem"><div id="cl-dist" class="flaps flaps--sm"></div><span class="cl-telem__u">ft</span><span class="cl-telem__l">DIST</span></div>
+                <div class="cl-telem__sep"></div>
+                <div class="cl-telem"><div id="cl-vs" class="flaps flaps--sm"></div><span class="cl-telem__u">fpm</span><span class="cl-telem__l">VS</span></div>
+            </div>
+            <div class="cl-card__row cl-card__row--status">
+                <span id="cl-dir" class="cl-dir">—</span>
+                <span id="cl-compass" class="cl-status-txt">—</span>
+                <span id="cl-hdg" class="cl-status-hdg">—</span>
             </div>
         </main>
+    </div>
 
-        <footer>
-            <span id="conn-dot" class="conn-dot disconnected"></span>
-            <span id="conn-label" class="conn-label">Disconnected</span>
-        </footer>
+    <!-- ========== MODERN: MULTI-PLANE (radar) ========== -->
+    <div class="screen" id="screen-modern-multi">
+        <header class="md-hdr">
+            <span class="md-hdr__title">FlightView</span>
+            <div class="md-hdr__right">
+                <span id="md-m-count" class="md-hdr__count">0 aircraft</span>
+                <span id="md-m-conn" class="hdr-conn"></span>
+            </div>
+        </header>
+        <div class="md-radar-layout">
+            <div class="md-radar" id="md-radar">
+                <div class="md-radar__ring md-radar__ring--1"></div>
+                <div class="md-radar__ring md-radar__ring--2"></div>
+                <div class="md-radar__ring md-radar__ring--3"></div>
+                <div class="md-radar__cross-h"></div>
+                <div class="md-radar__cross-v"></div>
+                <span class="md-radar__lbl md-radar__n">N</span>
+                <span class="md-radar__lbl md-radar__e">E</span>
+                <span class="md-radar__lbl md-radar__s">S</span>
+                <span class="md-radar__lbl md-radar__w">W</span>
+                <div class="md-radar__sweep"></div>
+                <div class="md-radar__home"></div>
+            </div>
+            <div class="md-list" id="md-list">
+                <div class="md-list__empty">No aircraft detected</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== MODERN: SINGLE-PLANE (detail card) ========== -->
+    <div class="screen" id="screen-modern-single">
+        <header class="md-hdr">
+            <span id="md-s-badge" class="md-hdr__badge">—</span>
+            <div class="md-hdr__right">
+                <span id="md-s-count" class="md-hdr__count">0 nearby</span>
+                <span id="md-s-conn" class="hdr-conn"></span>
+            </div>
+        </header>
+        <main class="md-card">
+            <div class="md-card__identity">
+                <h1 id="md-airline" class="md-card__airline">—</h1>
+                <div class="md-card__meta">
+                    <span id="md-type" class="md-card__type">—</span>
+                    <span id="md-reg" class="md-card__reg"></span>
+                </div>
+            </div>
+            <div class="md-card__route" id="md-route-row">
+                <div class="md-route-end">
+                    <span id="md-origin" class="md-route__code">—</span>
+                    <span class="md-route__label">Origin</span>
+                </div>
+                <div class="md-route__path">
+                    <span class="md-route__line"></span>
+                    <span class="md-route__icon">✈</span>
+                    <span class="md-route__line"></span>
+                </div>
+                <div class="md-route-end">
+                    <span id="md-dest" class="md-route__code">—</span>
+                    <span class="md-route__label">Destination</span>
+                </div>
+            </div>
+            <div class="md-card__stats">
+                <div class="md-stat"><span id="md-alt" class="md-stat__val">—</span><span class="md-stat__lbl">Altitude</span></div>
+                <div class="md-stat"><span id="md-spd" class="md-stat__val">—</span><span class="md-stat__lbl">Speed</span></div>
+                <div class="md-stat"><span id="md-dist" class="md-stat__val">—</span><span class="md-stat__lbl">Distance</span></div>
+                <div class="md-stat"><span id="md-vrate" class="md-stat__val">—</span><span class="md-stat__lbl">VS</span></div>
+            </div>
+            <div class="md-card__status">
+                <span id="md-dir" class="md-dir">—</span>
+                <span id="md-compass" class="md-status-txt">—</span>
+                <span id="md-hdg" class="md-status-txt">—</span>
+            </div>
+        </main>
+    </div>
+
+    <!-- ========== CONFIG SCREEN ========== -->
+    <div class="screen" id="screen-config">
+        <header class="cfg-hdr">
+            <span class="cfg-hdr__title">Settings</span>
+            <button class="cfg-hdr__close" id="btn-cfg-close">✕</button>
+        </header>
+        <div class="cfg-body">
+            <div class="cfg-group">
+                <span class="cfg-group__title">LOCATION</span>
+                <div class="cfg-field"><label>Latitude</label><input type="number" id="cfg-lat" step="0.0001"></div>
+                <div class="cfg-field"><label>Longitude</label><input type="number" id="cfg-lon" step="0.0001"></div>
+            </div>
+            <div class="cfg-group">
+                <span class="cfg-group__title">NEAR ZONE (detail view)</span>
+                <div class="cfg-field"><label>Altitude (ft)</label><input type="number" id="cfg-alt" step="100"></div>
+                <div class="cfg-field"><label>Radius (ft)</label><input type="number" id="cfg-radius" step="100"></div>
+            </div>
+            <div class="cfg-group">
+                <span class="cfg-group__title">FAR ZONE (radar / board)</span>
+                <div class="cfg-field"><label>Altitude (ft)</label><input type="number" id="cfg-radar-alt" step="500"></div>
+                <div class="cfg-field"><label>Radius (ft)</label><input type="number" id="cfg-radar-radius" step="500"></div>
+            </div>
+            <div class="cfg-group">
+                <span class="cfg-group__title">DATA SOURCE</span>
+                <div class="cfg-field"><label>Poll interval (s)</label><input type="number" id="cfg-poll" min="1" max="60"></div>
+                <div class="cfg-field cfg-field--toggle"><label>Mock mode</label><button id="cfg-mock" class="cfg-toggle">OFF</button></div>
+                <div class="cfg-field"><label>ADSBX API Key</label><input type="password" id="cfg-apikey" placeholder="Optional"></div>
+            </div>
+        </div>
+        <div class="cfg-actions">
+            <button class="cfg-btn cfg-btn--save" id="btn-cfg-save">Save</button>
+            <button class="cfg-btn cfg-btn--cancel" id="btn-cfg-cancel">Cancel</button>
+        </div>
     </div>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=17"></script>
 </body>
 </html>

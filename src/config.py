@@ -23,6 +23,8 @@ class Config:
     HOME_LON: float = float(os.getenv("HOME_LON", "0.0"))
     ALTITUDE_LIMIT_FT: int = int(os.getenv("ALTITUDE_LIMIT_FT", "3000"))
     RADIUS_LIMIT_FT: int = int(os.getenv("RADIUS_LIMIT_FT", "1500"))
+    RADAR_ALTITUDE_FT: int = int(os.getenv("RADAR_ALTITUDE_FT", "15000"))
+    RADAR_RADIUS_FT: int = int(os.getenv("RADAR_RADIUS_FT", "15000"))
     POLL_INTERVAL_SEC: int = int(os.getenv("POLL_INTERVAL_SEC", "5"))
     ADSBX_API_KEY: str = os.getenv("ADSBX_API_KEY", "")
     MOCK_MODE: bool = os.getenv("MOCK_MODE", "False").lower() in ("true", "1", "yes")

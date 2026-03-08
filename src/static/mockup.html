@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=800, height=480, initial-scale=1.0">
+<title>FlightView — Multi-Plane Layout Options</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg: #0E0E0C;
+    --surface: #1E1D19;
+    --split: #080806;
+    --amber: #F0C850;
+    --amber-dim: #8B7A3C;
+    --amber-ghost: #4A4228;
+    --cream: #E8DCC8;
+    --gray: #7A7568;
+    --dk-gray: #4A463C;
+    --faint: #2A2820;
+    --emerald: #50C878;
+    --rose: #E85D75;
+    --ff: 'Outfit', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+body {
+    background: #000;
+    font-family: var(--ff);
+    color: var(--cream);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Tab navigation */
+.tabs {
+    position: fixed; top:0; left:0; right:0; z-index:100;
+    display:flex; background:#111;
+    border-bottom: 1px solid #333;
+}
+.tab {
+    flex:1; padding:12px; text-align:center;
+    font-family:var(--mono); font-size:0.7rem; font-weight:600;
+    letter-spacing:2px; color:#666; cursor:pointer;
+    border:none; background:none; transition:all 0.2s;
+}
+.tab.active { color:var(--amber); background:#1a1a18; }
+.tab:hover { color:var(--cream); }
+
+.option { display:none; margin-top:44px; }
+.option.active { display:block; }
+
+/* Shared board wrapper */
+.board {
+    width:800px; height:480px; margin:0 auto;
+    background: linear-gradient(180deg, #110F0D 0%, #0A0A08 100%);
+    padding: 12px 24px 28px;
+    display:flex; flex-direction:column;
+    position:relative; overflow:hidden;
+}
+.board-hdr {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:8px; flex-shrink:0;
+}
+.board-hdr__title {
+    font-family:var(--mono); font-size:0.72rem; font-weight:700;
+    color:var(--amber); letter-spacing:3px;
+}
+.board-hdr__count {
+    font-family:var(--mono); font-size:0.58rem; font-weight:600;
+    color:var(--dk-gray); letter-spacing:2.5px;
+}
+
+/* ================================================================
+   OPTION A: Bigger flap cells, fewer columns
+   ================================================================ */
+
+.oa-cols {
+    display:flex; padding:0 4px 6px; border-bottom:1px solid var(--faint);
+    margin-bottom:6px; gap:12px;
+}
+.oa-cols span {
+    font-family:var(--mono); font-size:0.42rem; font-weight:600;
+    color:var(--dk-gray); letter-spacing:2.5px;
+}
+.oa-cols .c-flight { width:140px; }
+.oa-cols .c-airline { flex:1; }
+.oa-cols .c-dist { width:80px; text-align:right; }
+
+.oa-rows { flex:1; overflow:hidden; }
+
+.oa-row {
+    display:flex; align-items:center; gap:12px;
+    padding:7px 4px; border-bottom:1px solid rgba(42,40,32,0.3);
+}
+.oa-row__flight { width:140px; display:inline-flex; gap:2px; }
+.oa-row__airline { flex:1; display:inline-flex; gap:2px; }
+.oa-row__dist {
+    width:80px; text-align:right;
+    font-family:var(--mono); font-size:0.85rem; font-weight:600;
+    color:var(--amber-dim);
+}
+.oa-row__dir {
+    font-family:var(--mono); font-size:0.5rem; font-weight:700;
+    letter-spacing:1px; width:36px; text-align:center;
+}
+.oa-row__dir.app { color:var(--emerald); }
+.oa-row__dir.dep { color:var(--rose); }
+.oa-row__dir.ovr { color:var(--amber); }
+
+/* Flap cells — medium size for option A */
+.fa { 
+    display:inline-flex; align-items:center; justify-content:center;
+    width:18px; height:26px; background:var(--surface); border-radius:2px;
+    position:relative; overflow:hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.5), inset 0 0.5px 0 rgba(255,255,255,0.03);
+}
+.fa::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:50%;
+    background:rgba(255,255,255,0.018); z-index:1;
+}
+.fa::after {
+    content:''; position:absolute; left:0; right:0; top:calc(50% - 0.5px); height:1px;
+    background:var(--split); z-index:3;
+}
+.fa span {
+    font-family:var(--mono); font-weight:700; font-size:0.82rem;
+    color:var(--amber); z-index:2; line-height:1;
+    text-shadow: 0 0 8px rgba(240,200,80,0.1);
+}
+.fa.sp { background:rgba(30,29,25,0.2); box-shadow:none; }
+.fa.sp::before, .fa.sp::after { display:none; }
+
+/* ================================================================
+   OPTION B: Styled text rows (no flap cells)
+   ================================================================ */
+
+.ob-rows { flex:1; overflow:hidden; padding-top:4px; }
+
+.ob-row {
+    display:flex; align-items:baseline; gap:0;
+    padding:10px 8px 10px 12px;
+    border-bottom:1px solid rgba(42,40,32,0.25);
+    border-left:2px solid transparent;
+    transition: border-color 0.3s;
+}
+.ob-row:nth-child(odd) {
+    background: rgba(30,29,25,0.2);
+}
+.ob-row__flight {
+    font-family:var(--mono); font-size:1rem; font-weight:700;
+    color:var(--amber); letter-spacing:1.5px; width:110px;
+    flex-shrink:0;
+}
+.ob-row__airline {
+    font-family:var(--ff); font-size:0.92rem; font-weight:400;
+    color:var(--cream); flex:1; 
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.ob-row__stats {
+    display:flex; align-items:baseline; gap:16px; flex-shrink:0;
+    margin-left:12px;
+}
+.ob-row__stat {
+    text-align:right; min-width:60px;
+}
+.ob-row__val {
+    font-family:var(--mono); font-size:0.82rem; font-weight:600;
+    color:var(--cream); display:block;
+}
+.ob-row__lbl {
+    font-family:var(--mono); font-size:0.38rem; font-weight:500;
+    color:var(--dk-gray); letter-spacing:2px; display:block; margin-top:1px;
+}
+.ob-row__dir {
+    font-family:var(--mono); font-size:0.55rem; font-weight:700;
+    letter-spacing:1.5px; min-width:36px; text-align:center;
+    padding:3px 8px; border-radius:3px;
+}
+.ob-row__dir.app { color:var(--emerald); background:rgba(80,200,120,0.08); }
+.ob-row__dir.dep { color:var(--rose); background:rgba(232,93,117,0.08); }
+.ob-row__dir.ovr { color:var(--amber); background:rgba(240,200,80,0.06); }
+
+/* Subtle header line for option B */
+.ob-hdr-line {
+    height:1px; background:linear-gradient(90deg, var(--amber-ghost), transparent 80%);
+    margin-bottom:2px;
+}
+
+/* ================================================================
+   OPTION C: Card strips
+   ================================================================ */
+
+.oc-rows { flex:1; overflow:hidden; display:flex; flex-direction:column; gap:6px; padding-top:6px; }
+
+.oc-card {
+    display:flex; align-items:center; gap:14px;
+    background:var(--surface); border:1px solid var(--faint);
+    border-radius:6px; padding:10px 14px;
+    position:relative;
+}
+.oc-card::after {
+    content:''; position:absolute; left:0; right:0;
+    top:calc(50% - 0.5px); height:1px;
+    background:rgba(8,8,6,0.3);
+    pointer-events:none;
+}
+
+.oc-card__left {
+    display:flex; flex-direction:column; gap:1px; min-width:100px;
+}
+.oc-card__flight {
+    font-family:var(--mono); font-size:0.92rem; font-weight:700;
+    color:var(--amber); letter-spacing:1px;
+}
+.oc-card__airline {
+    font-family:var(--ff); font-size:0.72rem; font-weight:400;
+    color:var(--gray);
+}
+
+.oc-card__route {
+    display:flex; align-items:center; gap:6px; flex:1; justify-content:center;
+}
+.oc-card__iata {
+    font-family:var(--mono); font-size:0.85rem; font-weight:700;
+    color:var(--cream); letter-spacing:1.5px;
+}
+.oc-card__arrow {
+    font-size:0.6rem; color:var(--amber-ghost);
+}
+
+.oc-card__stats {
+    display:flex; gap:14px; align-items:center;
+}
+.oc-stat {
+    text-align:center;
+}
+.oc-stat__val {
+    font-family:var(--mono); font-size:0.8rem; font-weight:600;
+    color:var(--cream); display:block;
+}
+.oc-stat__lbl {
+    font-family:var(--mono); font-size:0.35rem; font-weight:500;
+    color:var(--dk-gray); letter-spacing:2px; display:block;
+}
+.oc-card__dir {
+    font-family:var(--mono); font-size:0.5rem; font-weight:700;
+    letter-spacing:1px; padding:4px 10px; border-radius:3px;
+    min-width:38px; text-align:center;
+}
+.oc-card__dir.app { color:var(--emerald); background:rgba(80,200,120,0.1); }
+.oc-card__dir.dep { color:var(--rose); background:rgba(232,93,117,0.1); }
+.oc-card__dir.ovr { color:var(--amber); background:rgba(240,200,80,0.08); }
+</style>
+</head>
+<body>
+
+<div class="tabs">
+    <button class="tab active" onclick="show(0)">A: BIGGER FLAPS</button>
+    <button class="tab" onclick="show(1)">B: STYLED TEXT</button>
+    <button class="tab" onclick="show(2)">C: CARD STRIPS</button>
+</div>
+
+<!-- ================================================================
+     OPTION A: Bigger flap cells, fewer columns
+     ================================================================ -->
+<div class="option active" id="opt-0">
+<div class="board">
+    <div class="board-hdr">
+        <span class="board-hdr__title">FLIGHTVIEW</span>
+        <span class="board-hdr__count">7 AIRCRAFT</span>
+    </div>
+    <div class="oa-cols">
+        <span class="c-flight">FLIGHT</span>
+        <span class="c-airline">AIRLINE</span>
+        <span class="c-dist">DIST</span>
+    </div>
+    <div class="oa-rows" id="oa-rows"></div>
+</div>
+</div>
+
+<!-- ================================================================
+     OPTION B: Styled text rows
+     ================================================================ -->
+<div class="option" id="opt-1">
+<div class="board">
+    <div class="board-hdr">
+        <span class="board-hdr__title">FLIGHTVIEW</span>
+        <span class="board-hdr__count">7 AIRCRAFT</span>
+    </div>
+    <div class="ob-hdr-line"></div>
+    <div class="ob-rows" id="ob-rows"></div>
+</div>
+</div>
+
+<!-- ================================================================
+     OPTION C: Card strips
+     ================================================================ -->
+<div class="option" id="opt-2">
+<div class="board">
+    <div class="board-hdr">
+        <span class="board-hdr__title">FLIGHTVIEW</span>
+        <span class="board-hdr__count">7 AIRCRAFT</span>
+    </div>
+    <div class="oc-rows" id="oc-rows"></div>
+</div>
+</div>
+
+<script>
+var DATA = [
+    { flight:"UA 567",  airline:"UNITED AIRLINES",    alt:1951, dist:579,  dir:"app", origin:"SFO", dest:"JFK" },
+    { flight:"AA 321",  airline:"AMERICAN AIRLINES",   alt:1529, dist:729,  dir:"app", origin:"DFW", dest:"MIA" },
+    { flight:"B6 456",  airline:"JETBLUE AIRWAYS",     alt:1838, dist:1181, dir:"dep", origin:"BOS", dest:"FLL" },
+    { flight:"DL 890",  airline:"DELTA AIR LINES",     alt:2595, dist:2507, dir:"dep", origin:"ATL", dest:"LAX" },
+    { flight:"F9 222",  airline:"FRONTIER AIRLINES",   alt:3317, dist:2679, dir:"app", origin:"IAH", dest:"DEN" },
+    { flight:"WN 1234", airline:"SOUTHWEST AIRLINES",  alt:2282, dist:2742, dir:"dep", origin:"DAL", dest:"ORD" },
+    { flight:"AS 111",  airline:"ALASKA AIRLINES",     alt:2137, dist:2841, dir:"dep", origin:"SEA", dest:"PDX" },
+];
+
+var DIR_LABELS = { app:"APP", dep:"DEP", ovr:"OVR" };
+
+function flap(ch) {
+    var cls = ch === ' ' ? 'fa sp' : 'fa';
+    return '<div class="'+cls+'"><span>'+ch+'</span></div>';
+}
+function flaps(text) {
+    return text.split('').map(flap).join('');
+}
+function pad(s, n) { while(s.length < n) s += ' '; return s.substring(0,n); }
+function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+
+// Option A
+(function(){
+    var c = document.getElementById('oa-rows');
+    DATA.forEach(function(d){
+        var r = document.createElement('div'); r.className='oa-row';
+        r.innerHTML =
+            '<div class="oa-row__flight">' + flaps(pad(d.flight,8)) + '</div>' +
+            '<div class="oa-row__airline">' + flaps(pad(d.airline,18)) + '</div>' +
+            '<div class="oa-row__dist">' + fmt(d.dist) + '<span style="font-size:0.55rem;color:#4A463C"> ft</span></div>' +
+            '<div class="oa-row__dir '+d.dir+'">' + DIR_LABELS[d.dir] + '</div>';
+        c.appendChild(r);
+    });
+})();
+
+// Option B
+(function(){
+    var c = document.getElementById('ob-rows');
+    DATA.forEach(function(d){
+        var r = document.createElement('div'); r.className='ob-row';
+        r.innerHTML =
+            '<span class="ob-row__flight">' + d.flight + '</span>' +
+            '<span class="ob-row__airline">' + d.airline + '</span>' +
+            '<div class="ob-row__stats">' +
+                '<div class="ob-row__stat"><span class="ob-row__val">' + fmt(d.alt) + '</span><span class="ob-row__lbl">ALT FT</span></div>' +
+                '<div class="ob-row__stat"><span class="ob-row__val">' + fmt(d.dist) + '</span><span class="ob-row__lbl">DIST FT</span></div>' +
+            '</div>' +
+            '<span class="ob-row__dir '+d.dir+'">' + DIR_LABELS[d.dir] + '</span>';
+        c.appendChild(r);
+    });
+})();
+
+// Option C
+(function(){
+    var c = document.getElementById('oc-rows');
+    DATA.forEach(function(d){
+        var r = document.createElement('div'); r.className='oc-card';
+        r.innerHTML =
+            '<div class="oc-card__left">' +
+                '<span class="oc-card__flight">' + d.flight + '</span>' +
+                '<span class="oc-card__airline">' + d.airline + '</span>' +
+            '</div>' +
+            '<div class="oc-card__route">' +
+                '<span class="oc-card__iata">' + d.origin + '</span>' +
+                '<span class="oc-card__arrow">✈</span>' +
+                '<span class="oc-card__iata">' + d.dest + '</span>' +
+            '</div>' +
+            '<div class="oc-card__stats">' +
+                '<div class="oc-stat"><span class="oc-stat__val">' + fmt(d.alt) + '</span><span class="oc-stat__lbl">ALT</span></div>' +
+                '<div class="oc-stat"><span class="oc-stat__val">' + fmt(d.dist) + '</span><span class="oc-stat__lbl">DIST</span></div>' +
+            '</div>' +
+            '<span class="oc-card__dir '+d.dir+'">' + DIR_LABELS[d.dir] + '</span>';
+        c.appendChild(r);
+    });
+})();
+
+function show(n) {
+    document.querySelectorAll('.option').forEach(function(el,i){ el.classList.toggle('active',i===n); });
+    document.querySelectorAll('.tab').forEach(function(el,i){ el.classList.toggle('active',i===n); });
+}
+</script>
+</body>
+</html>

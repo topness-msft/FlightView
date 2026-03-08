@@ -37,7 +37,7 @@ class MockDataSource:
 
     def _init_sim(self, ac: dict) -> dict:
         """Create initial simulation state for one aircraft."""
-        behaviour = random.choice(["approaching", "departing", "passing"])
+        behaviour = random.choice(["approaching", "departing", "passing", "far_cruise", "far_descend"])
         angle = random.uniform(0, 2 * math.pi)
 
         if behaviour == "approaching":
@@ -50,6 +50,16 @@ class MockDataSource:
             altitude_ft = random.uniform(500, 1200)
             dist_rate = random.uniform(40, 120)
             alt_rate = random.uniform(20, 80)
+        elif behaviour == "far_cruise":
+            distance_ft = random.uniform(5000, 12000)
+            altitude_ft = random.uniform(6000, 14000)
+            dist_rate = random.uniform(-20, 20)
+            alt_rate = random.uniform(-5, 5)
+        elif behaviour == "far_descend":
+            distance_ft = random.uniform(4000, 10000)
+            altitude_ft = random.uniform(4000, 10000)
+            dist_rate = random.uniform(-60, -20)
+            alt_rate = random.uniform(-40, -10)
         else:  # passing
             distance_ft = random.uniform(800, 2500)
             altitude_ft = random.uniform(1500, 3500)
@@ -77,12 +87,12 @@ class MockDataSource:
         sim["velocity_kts"] = max(80, min(350, sim["velocity_kts"]))
 
         # Clamp and reset if out of range
-        if sim["distance_ft"] < 100 or sim["distance_ft"] > 4000:
+        if sim["distance_ft"] < 100 or sim["distance_ft"] > 14000:
             sim["dist_rate"] = -sim["dist_rate"]
-        if sim["altitude_ft"] < 400 or sim["altitude_ft"] > 4200:
+        if sim["altitude_ft"] < 400 or sim["altitude_ft"] > 14500:
             sim["alt_rate"] = -sim["alt_rate"]
-        sim["distance_ft"] = max(100, min(4000, sim["distance_ft"]))
-        sim["altitude_ft"] = max(400, min(4200, sim["altitude_ft"]))
+        sim["distance_ft"] = max(100, min(14000, sim["distance_ft"]))
+        sim["altitude_ft"] = max(400, min(14500, sim["altitude_ft"]))
 
     def fetch_aircraft(self) -> list[dict]:
         """Return a list of aircraft dicts matching OpenSkyClient.fetch_aircraft() format."""
@@ -92,8 +102,8 @@ class MockDataSource:
         for sim in self._sim.values():
             self._advance(sim)
 
-        # Pick a random subset of 2-5 aircraft
-        count = random.randint(2, 5)
+        # Pick a random subset of 4-7 aircraft
+        count = random.randint(4, 7)
         chosen = random.sample(list(self._sim.values()), min(count, len(self._sim)))
 
         results = []
@@ -117,6 +127,9 @@ class MockDataSource:
                 "vertical_rate_fpm": round(vertical_rate_fpm, 1),
                 "on_ground": False,
                 "last_contact": int(time.time()),
+                "origin": sim.get("origin", ""),
+                "destination": sim.get("destination", ""),
+                "typecode": sim.get("typecode", ""),
             })
 
         return results

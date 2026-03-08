@@ -1,242 +1,626 @@
-/* FlightView — Dark theme optimized for 800x480 display */
+/* ================================================================
+   FlightView — Multi-Theme Aviation Display
+   800×480 Raspberry Pi 7" Touchscreen Kiosk
+   ================================================================ */
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+/* 1. BASE & VARIABLES
+   ================================================================ */
+
+:root {
+    /* Classic (warm) */
+    --cl-bg: #0E0E0C;
+    --cl-surface: #1E1D19;
+    --cl-split: #080806;
+    --cl-amber: #F0C850;
+    --cl-amber-dim: #8B7A3C;
+    --cl-amber-ghost: #4A4228;
+    --cl-amber-glow: rgba(240,200,80,0.15);
+    --cl-cream: #E8DCC8;
+    --cl-gray: #7A7568;
+    --cl-dk-gray: #4A463C;
+    --cl-faint: #2A2820;
+
+    /* Modern (cool) */
+    --md-bg: #0F172A;
+    --md-surface: #1E293B;
+    --md-border: #334155;
+    --md-text: #F1F5F9;
+    --md-dim: #94A3B8;
+    --md-muted: #64748B;
+    --md-faint: #475569;
+    --md-blue: #3B82F6;
+    --md-blue-bright: #60A5FA;
+    --md-blue-bg: rgba(59,130,246,0.10);
+    --md-blue-glow: rgba(59,130,246,0.25);
+
+    /* Shared status */
+    --c-emerald: #34D399;
+    --c-emerald-bg: rgba(52,211,153,0.12);
+    --c-rose: #FB7185;
+    --c-rose-bg: rgba(251,113,133,0.12);
+    --c-amber-status: rgba(240,200,80,0.10);
+
+    --ff: 'Outfit', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', 'Consolas', monospace;
 }
 
-body {
-    background: #0a0a1a;
-    color: #e8e8f0;
-    font-family: system-ui, -apple-system, sans-serif;
-    width: 800px;
-    height: 480px;
-    overflow: hidden;
-}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100vw; height:100vh; overflow:hidden; }
+body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#000; position:relative; }
 
-.container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    height: 100%;
-    padding: 12px 24px;
-}
+/* 2. SCREEN MANAGEMENT
+   ================================================================ */
 
-/* Header */
-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    max-width: 720px;
-    margin-bottom: 12px;
-}
-
-h1 {
-    font-size: 1.4rem;
-    font-weight: 600;
-    color: #e8e8f0;
-}
-
-.nearby-badge {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #4ecca3;
-    padding: 4px 12px;
-    border-radius: 12px;
-    background: #1a1a2e;
-    border: 1px solid #2a2a4e;
-}
-
-/* Flight card */
-.flight-card {
-    background: #1a1a2e;
-    border-radius: 12px;
-    padding: 24px 32px;
-    width: 100%;
-    max-width: 720px;
-    border: 1px solid #2a2a4e;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-    transition: opacity 0.3s ease;
-}
-
-.flight-card.hidden {
+.screen {
     display: none;
+    position: absolute;
+    inset: 0;
+    flex-direction: column;
+}
+.screen.active {
+    display: flex;
+    animation: screenIn 0.35s ease-out;
+}
+@keyframes screenIn {
+    from { opacity:0; } to { opacity:1; }
 }
 
-.flight-card.fade-out {
-    opacity: 0;
-}
+/* 3. NAVIGATION
+   ================================================================ */
 
-.card-header {
+.nav {
+    position: fixed;
+    bottom: 8px;
+    left: 0; right: 0;
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 14px;
-    padding-bottom: 14px;
-    border-bottom: 1px solid #2a2a4e;
+    padding: 0 20px;
+    z-index: 100;
+    pointer-events: none;
 }
-
-.airline-name {
-    font-size: 2em;
-    font-weight: 700;
-    color: #e8e8f0;
+.nav button {
+    pointer-events: auto;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: opacity 0.2s;
 }
+.nav button:active { opacity:0.6; }
 
-.flight-number {
-    font-size: 1.5em;
+.nav__theme {
+    font-family: var(--mono);
+    font-size: 0.55rem;
     font-weight: 600;
-    color: #4ecca3;
+    letter-spacing: 2px;
+    padding: 5px 12px;
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.35);
+}
+.nav__cfg {
+    font-size: 0.9rem;
+    padding: 4px 10px;
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.3);
 }
 
-.card-body {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+/* Shared connection dot */
+.hdr-conn {
+    width:6px; height:6px; border-radius:50%;
+    display:inline-block; background:rgba(255,255,255,0.1);
+    transition: all 0.3s;
+}
+.hdr-conn.ok { background:var(--c-emerald); box-shadow:0 0 6px rgba(52,211,153,0.5); }
+.hdr-conn.err { background:var(--c-rose); box-shadow:0 0 6px rgba(251,113,133,0.4); }
+
+/* 4. SPLIT-FLAP CELLS (shared by classic)
+   ================================================================ */
+
+.flaps { display:inline-flex; gap:2px; align-items:center; }
+
+.flap {
+    display:inline-flex; align-items:center; justify-content:center;
+    background:var(--cl-surface); border-radius:2px;
+    position:relative; overflow:hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5), inset 0 0.5px 0 rgba(255,255,255,0.03);
+}
+.flap::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:50%;
+    background:rgba(255,255,255,0.018); pointer-events:none; z-index:1;
+}
+.flap::after {
+    content:''; position:absolute; left:0; right:0; top:calc(50% - 0.5px); height:1px;
+    background:var(--cl-split); box-shadow:0 1px 0 rgba(255,255,255,0.012);
+    pointer-events:none; z-index:3;
+}
+.flap__char {
+    font-family:var(--mono); font-weight:700; color:var(--cl-amber);
+    text-align:center; position:relative; z-index:2; line-height:1;
+    text-shadow:0 0 10px rgba(240,200,80,0.12);
+}
+.flap.flap--space { background:rgba(30,29,25,0.3); box-shadow:none; }
+.flap.flap--space::before, .flap.flap--space::after { display:none; }
+.flap.flipping .flap__char { animation: flapFlip 0.14s ease-out; }
+@keyframes flapFlip {
+    0%  { transform:perspective(200px) rotateX(90deg); opacity:0.2; }
+    65% { transform:perspective(200px) rotateX(-6deg); opacity:1; }
+    100%{ transform:perspective(200px) rotateX(0deg); opacity:1; }
 }
 
-.aircraft-type {
-    font-size: 1.1em;
-    color: #8888a0;
+/* Sizes — scale with viewport for responsive */
+.flaps--xl .flap { width:clamp(26px,4vw,34px); height:clamp(36px,5.5vw,48px); }
+.flaps--xl .flap__char { font-size:clamp(1.2rem,2vw,1.6rem); }
+.flaps--lg .flap { width:clamp(30px,4.5vw,40px); height:clamp(40px,6vw,54px); }
+.flaps--lg .flap__char { font-size:clamp(1.4rem,2.3vw,1.9rem); }
+.flaps--sm .flap { width:clamp(20px,2.8vw,26px); height:clamp(28px,4vw,36px); }
+.flaps--sm .flap__char { font-size:clamp(0.9rem,1.4vw,1.15rem); }
+.flaps--xs .flap { width:14px; height:20px; } .flaps--xs .flap__char { font-size:0.68rem; }
+
+/* 5. CLASSIC SHARED STYLES
+   ================================================================ */
+
+#screen-classic-multi, #screen-classic-single {
+    background: linear-gradient(180deg, #110F0D 0%, #0A0A08 100%);
+    padding: 12px 28px 28px;
 }
 
-.route {
-    font-size: 1.3em;
-    font-weight: 600;
-    color: #e8e8f0;
-    letter-spacing: 1px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+.cl-hdr {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:10px; flex-shrink:0;
+}
+.cl-hdr__title {
+    font-family:var(--mono); font-size:0.72rem; font-weight:700;
+    color:var(--cl-amber); letter-spacing:3px;
+}
+.cl-hdr__left { display:flex; align-items:center; gap:8px; }
+.cl-hdr__diamond { color:var(--cl-amber); font-size:0.45rem; opacity:0.6; }
+.cl-hdr__flight {
+    font-family:var(--mono); font-size:0.88rem; font-weight:700;
+    color:var(--cl-amber); letter-spacing:1.5px;
+}
+.cl-hdr__right { display:flex; align-items:center; gap:12px; }
+.cl-hdr__count {
+    font-family:var(--mono); font-size:0.58rem; font-weight:600;
+    color:var(--cl-dk-gray); letter-spacing:2.5px;
 }
 
-.route-arrow {
-    color: #f0a500;
-    font-size: 1.2em;
-    font-weight: 700;
+/* 6. CLASSIC: SINGLE-PLANE CARD
+   ================================================================ */
+
+.cl-card {
+    flex:1; display:flex; flex-direction:column; justify-content:center; gap:0;
+    transition: opacity 0.25s ease;
+}
+.cl-card.fade-out { opacity:0; }
+
+.cl-card__row { display:flex; align-items:center; }
+.cl-card__row--airline { justify-content:center; margin-bottom:5px; }
+.cl-card__row--type { justify-content:center; gap:14px; margin-bottom:14px; }
+.cl-card__type { font-size:0.82rem; font-weight:300; color:var(--cl-gray); }
+.cl-card__reg { font-family:var(--mono); font-size:0.65rem; color:var(--cl-dk-gray); }
+
+/* Route */
+.cl-card__row--route {
+    justify-content:center; margin-bottom:16px; padding:10px 0;
+    border-top:1px solid var(--cl-faint); border-bottom:1px solid var(--cl-faint);
+}
+.cl-card__row--route.no-route { display:none; }
+.cl-route-path { display:flex; align-items:center; margin:0 20px; flex:0 1 180px; }
+.cl-route-path__dash { flex:1; height:0; border-top:2px dashed var(--cl-amber-ghost); }
+.cl-route-path__icon {
+    color:var(--cl-amber); font-size:1rem; margin:0 10px;
+    filter:drop-shadow(0 0 8px var(--cl-amber-glow));
+    animation: planeDrift 3s ease-in-out infinite;
+}
+@keyframes planeDrift { 0%,100%{transform:translateX(0)} 50%{transform:translateX(4px)} }
+
+/* Telemetry */
+.cl-card__row--telem { justify-content:center; gap:0; margin-bottom:12px; }
+.cl-telem { display:flex; flex-direction:column; align-items:center; padding:0 18px; gap:2px; }
+.cl-telem__u { font-family:var(--mono); font-size:0.5rem; color:var(--cl-dk-gray); letter-spacing:1px; margin-top:2px; }
+.cl-telem__l { font-family:var(--mono); font-size:0.42rem; color:var(--cl-amber-ghost); letter-spacing:3px; }
+.cl-telem__sep { width:1px; height:36px; background:var(--cl-faint); align-self:center; }
+
+/* Status */
+.cl-card__row--status { justify-content:center; gap:16px; }
+.cl-dir {
+    font-family:var(--mono); font-size:0.7rem; font-weight:700;
+    padding:3px 14px; border-radius:3px; letter-spacing:2px;
+    text-transform:uppercase; border:1px solid transparent;
+}
+.cl-dir.approaching { background:var(--c-emerald-bg); color:var(--c-emerald); border-color:rgba(52,211,153,0.2); }
+.cl-dir.departing   { background:var(--c-rose-bg); color:var(--c-rose); border-color:rgba(251,113,133,0.2); }
+.cl-dir.overhead    { background:var(--c-amber-status); color:var(--cl-amber); border-color:rgba(240,200,80,0.15); }
+.cl-status-txt { font-size:0.78rem; color:var(--cl-gray); }
+.cl-status-hdg { font-family:var(--mono); font-size:0.7rem; color:var(--cl-dk-gray); }
+
+/* 7. CLASSIC: MULTI-PLANE CARD STRIPS
+   ================================================================ */
+
+.cl-board { flex:1; overflow:hidden; display:flex; flex-direction:column; gap:5px; padding-top:4px; }
+
+.cl-strip {
+    display:flex; align-items:center; gap:12px;
+    background:var(--cl-surface); border:1px solid var(--cl-faint);
+    border-left:3px solid var(--cl-faint);
+    border-radius:5px; padding:8px 14px;
+    position:relative;
+    animation: rowIn 0.3s ease-out;
+}
+.cl-strip.approaching { border-left-color:var(--c-emerald); }
+.cl-strip.departing   { border-left-color:var(--c-rose); }
+.cl-strip.overhead    { border-left-color:var(--cl-amber); }
+/* Split-flap center line on each card */
+.cl-strip::after {
+    content:''; position:absolute; left:0; right:0;
+    top:calc(50% - 0.5px); height:1px;
+    background:rgba(8,8,6,0.35);
+    pointer-events:none;
+}
+.cl-strip__left {
+    display:flex; flex-direction:column; gap:1px; min-width:110px; flex-shrink:0;
+    position:relative; z-index:1;
+}
+.cl-strip__flight {
+    font-family:var(--mono); font-size:0.88rem; font-weight:700;
+    color:var(--cl-amber); letter-spacing:1px;
+}
+.cl-strip__airline {
+    font-family:var(--ff); font-size:0.68rem; font-weight:400;
+    color:var(--cl-gray);
+}
+.cl-strip__route {
+    display:flex; align-items:center; gap:6px; flex:1; justify-content:center;
+    position:relative; z-index:1;
+}
+.cl-strip__iata {
+    font-family:var(--mono); font-size:0.82rem; font-weight:700;
+    color:var(--cl-cream); letter-spacing:1.5px;
+}
+.cl-strip__arrow {
+    font-size:0.55rem; color:var(--cl-amber-ghost);
+}
+.cl-strip__stats {
+    display:flex; gap:14px; align-items:center; flex-shrink:0;
+    position:relative; z-index:1;
+}
+.cl-strip-stat {
+    text-align:center; min-width:42px;
+}
+.cl-strip-stat__val {
+    font-family:var(--mono); font-size:0.78rem; font-weight:600;
+    color:var(--cl-cream); display:block; line-height:1.2;
+}
+.cl-strip-stat__lbl {
+    font-family:var(--mono); font-size:0.35rem; font-weight:500;
+    color:var(--cl-dk-gray); letter-spacing:2px; display:block;
+}
+.cl-strip__dir {
+    font-family:var(--mono); font-size:0.48rem; font-weight:700;
+    letter-spacing:1.5px; padding:3px 8px; border-radius:3px;
+    min-width:36px; text-align:center;
+    position:relative; z-index:1;
+}
+.cl-strip__dir.approaching { color:var(--c-emerald); background:rgba(80,200,120,0.1); }
+.cl-strip__dir.departing   { color:var(--c-rose); background:rgba(232,93,117,0.1); }
+.cl-strip__dir.overhead    { color:var(--cl-amber); background:rgba(240,200,80,0.08); }
+
+/* Scanning empty state */
+.cl-board-empty {
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:24px; z-index:2;
+    transition:opacity 0.5s;
+}
+.cl-board-empty.hidden { opacity:0; pointer-events:none; }
+.cl-scan { position:relative; width:140px; height:140px; }
+.cl-scan__ring {
+    position:absolute; top:50%; left:50%; border-radius:50%;
+    border:1px solid rgba(240,200,80,0.06); transform:translate(-50%,-50%);
+}
+.cl-scan__ring--1 { width:45px; height:45px; }
+.cl-scan__ring--2 { width:90px; height:90px; }
+.cl-scan__ring--3 { width:135px; height:135px; }
+.cl-scan__center {
+    position:absolute; top:50%; left:50%; width:4px; height:4px; border-radius:50%;
+    background:var(--cl-amber); transform:translate(-50%,-50%);
+    box-shadow:0 0 8px var(--cl-amber-glow);
+}
+.cl-scan__arm {
+    position:absolute; top:50%; left:50%; width:68px; height:1px;
+    transform-origin:0% 50%; background:linear-gradient(90deg,rgba(240,200,80,0.4),transparent);
+    animation:sweep 4s linear infinite; will-change:transform;
+}
+@keyframes sweep { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+.cl-scan__text {
+    font-family:var(--mono); font-size:0.6rem; font-weight:600;
+    color:var(--cl-dk-gray); letter-spacing:4px;
+    animation: scanPulse 2s ease-in-out infinite;
+}
+@keyframes scanPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* 8. MODERN SHARED STYLES
+   ================================================================ */
+
+#screen-modern-multi, #screen-modern-single {
+    background: linear-gradient(180deg, #0F172A 0%, #0B1120 100%);
+    padding: 12px 28px 28px;
 }
 
-.stats {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 10px;
-    gap: 16px;
+.md-hdr {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:10px; flex-shrink:0;
+}
+.md-hdr__title {
+    font-family:var(--ff); font-size:0.85rem; font-weight:300;
+    color:var(--md-dim); letter-spacing:1px;
+}
+.md-hdr__badge {
+    font-family:var(--mono); font-size:0.75rem; font-weight:600;
+    color:#fff; background:var(--md-blue); padding:3px 12px;
+    border-radius:4px; letter-spacing:1px;
+}
+.md-hdr__right { display:flex; align-items:center; gap:12px; }
+.md-hdr__count {
+    font-family:var(--ff); font-size:0.7rem; font-weight:400; color:var(--md-muted);
 }
 
-.stat {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    flex: 1;
-    background: #12122a;
-    border-radius: 8px;
-    padding: 10px 8px;
+/* 9. MODERN: SINGLE-PLANE CARD
+   ================================================================ */
+
+.md-card {
+    flex:1; display:flex; flex-direction:column; justify-content:center; gap:0;
+    transition:opacity 0.25s;
+}
+.md-card.fade-out { opacity:0; }
+
+.md-card__identity { margin-bottom:4px; }
+.md-card__airline {
+    font-family:var(--ff); font-size:clamp(1.8rem,4vw,2.8rem); font-weight:200;
+    color:var(--md-text); letter-spacing:-0.5px; line-height:1.1;
+}
+.md-card__meta { display:flex; align-items:center; gap:14px; margin-top:2px; }
+.md-card__type { font-size:0.82rem; font-weight:300; color:var(--md-dim); }
+.md-card__reg { font-family:var(--mono); font-size:0.65rem; color:var(--md-muted); }
+
+/* Route */
+.md-card__route {
+    display:flex; align-items:center; justify-content:center;
+    margin:16px 0; padding:14px 0;
+    border-top:1px solid var(--md-border); border-bottom:1px solid var(--md-border);
+}
+.md-card__route.no-route { display:none; }
+.md-route-end { text-align:center; min-width:100px; }
+.md-route__code {
+    font-family:var(--mono); font-size:clamp(1.4rem,3vw,2.2rem); font-weight:700;
+    color:var(--md-text); letter-spacing:3px; display:block;
+}
+.md-route__label {
+    font-size:0.6rem; font-weight:400; color:var(--md-muted);
+    text-transform:uppercase; letter-spacing:1.5px; margin-top:2px;
+}
+.md-route__path { display:flex; align-items:center; flex:0 1 200px; margin:0 16px; }
+.md-route__line { flex:1; height:1px; background:var(--md-border); }
+.md-route__icon {
+    color:var(--md-blue); font-size:0.9rem; margin:0 10px;
+    filter:drop-shadow(0 0 6px var(--md-blue-glow));
 }
 
-.stat-label {
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: #6868a0;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    margin-bottom: 4px;
+/* Stats */
+.md-card__stats {
+    display:flex; justify-content:center; gap:0; margin-bottom:14px;
+}
+.md-stat {
+    flex:1; max-width:160px; text-align:center; padding:8px 12px;
+    border-right:1px solid var(--md-border);
+}
+.md-stat:last-child { border-right:none; }
+.md-stat__val {
+    font-family:var(--mono); font-size:clamp(1rem,2vw,1.5rem); font-weight:600;
+    color:var(--md-text); display:block; line-height:1.2;
+}
+.md-stat__lbl {
+    font-size:0.55rem; font-weight:400; color:var(--md-muted);
+    text-transform:uppercase; letter-spacing:1.5px; margin-top:2px;
 }
 
-.stat-value {
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: #e8e8f0;
+/* Status */
+.md-card__status { display:flex; align-items:center; justify-content:center; gap:16px; }
+.md-dir {
+    font-family:var(--ff); font-size:0.72rem; font-weight:600;
+    padding:4px 14px; border-radius:20px; text-transform:uppercase;
+    letter-spacing:1px;
+}
+.md-dir.approaching { background:var(--c-emerald-bg); color:var(--c-emerald); }
+.md-dir.departing   { background:var(--c-rose-bg); color:var(--c-rose); }
+.md-dir.overhead    { background:var(--md-blue-bg); color:var(--md-blue-bright); }
+.md-status-txt { font-size:0.75rem; color:var(--md-muted); }
+
+/* 10. MODERN: MULTI-PLANE RADAR
+   ================================================================ */
+
+.md-radar-layout {
+    flex:1; display:flex; gap:0; align-items:stretch; min-height:0;
 }
 
-.direction-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    margin-top: 6px;
+.md-radar {
+    position:relative; flex-shrink:0;
+    width:40%; align-self:stretch;
+}
+.md-radar__ring {
+    position:absolute; top:50%; left:50%; border-radius:50%;
+    border:1px solid rgba(59,130,246,0.08); transform:translate(-50%,-50%);
+}
+.md-radar__ring--1 { width:33.3%; height:33.3%; }
+.md-radar__ring--2 { width:66.6%; height:66.6%; }
+.md-radar__ring--3 { width:100%; height:100%; }
+
+.md-radar__cross-h, .md-radar__cross-v {
+    position:absolute; background:rgba(59,130,246,0.05);
+}
+.md-radar__cross-h { top:50%; left:0; right:0; height:1px; }
+.md-radar__cross-v { left:50%; top:0; bottom:0; width:1px; }
+
+.md-radar__lbl {
+    position:absolute; font-family:var(--mono); font-size:0.5rem;
+    font-weight:600; color:rgba(148,163,184,0.35); letter-spacing:1px;
+}
+.md-radar__n { top:2px; left:50%; transform:translateX(-50%); }
+.md-radar__s { bottom:2px; left:50%; transform:translateX(-50%); }
+.md-radar__e { right:2px; top:50%; transform:translateY(-50%); }
+.md-radar__w { left:2px; top:50%; transform:translateY(-50%); }
+
+.md-radar__sweep {
+    position:absolute; top:50%; left:50%; width:50%; height:1px;
+    transform-origin:0% 50%;
+    background:linear-gradient(90deg,rgba(59,130,246,0.35),transparent);
+    animation:sweep 6s linear infinite; will-change:transform;
+}
+.md-radar__home {
+    position:absolute; top:50%; left:50%; width:6px; height:6px;
+    border-radius:50%; background:var(--md-blue); transform:translate(-50%,-50%);
+    box-shadow:0 0 10px var(--md-blue-glow);
 }
 
-.direction-badge {
-    font-size: 0.95rem;
-    font-weight: 600;
-    padding: 5px 16px;
-    border-radius: 20px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+/* Aircraft blips (created by JS) */
+.md-blip {
+    position:absolute; pointer-events:none;
+    transition: left 0.8s ease, top 0.8s ease;
+}
+.md-blip__dot {
+    width:8px; height:8px; border-radius:50%; background:var(--md-blue-bright);
+    box-shadow:0 0 8px var(--md-blue-glow);
+    transform:translate(-50%,-50%);
+}
+.md-blip__label {
+    position:absolute; left:10px; top:-6px; white-space:nowrap;
+    font-family:var(--mono); font-size:0.55rem; font-weight:500;
+    color:var(--md-dim); letter-spacing:0.5px;
 }
 
-.direction-badge.approaching {
-    background: rgba(78, 204, 163, 0.15);
-    color: #4ecca3;
+/* Aircraft list sidebar */
+.md-list {
+    flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:6px;
+    padding:0 16px; min-width:0;
+}
+.md-list__empty {
+    color:var(--md-muted); font-size:0.85rem; font-weight:300;
+    text-align:center; margin-top:40px;
+}
+.md-list-item {
+    background:var(--md-surface); border:1px solid var(--md-border);
+    border-radius:6px; padding:8px 14px; flex-shrink:0;
+    display:grid;
+    grid-template-columns: 1.2fr 0.8fr 20px 0.8fr 1.2fr 80px;
+    align-items:center; justify-items:center;
+    animation: rowIn 0.3s ease-out;
 }
 
-.direction-badge.departing {
-    background: rgba(233, 69, 96, 0.15);
-    color: #e94560;
+.md-li__flight {
+    font-family:var(--mono); font-size:1.2rem; font-weight:700;
+    color:var(--md-blue-bright); letter-spacing:0.5px;
+    justify-self:start; white-space:nowrap;
+}
+.md-li__orig {
+    font-family:var(--mono); font-size:1.2rem; font-weight:700;
+    color:var(--md-text); letter-spacing:2px; white-space:nowrap;
+}
+.md-li__arrow {
+    font-size:1rem; color:var(--md-faint);
+}
+.md-li__dest {
+    font-family:var(--mono); font-size:1.2rem; font-weight:700;
+    color:var(--md-text); letter-spacing:2px; white-space:nowrap;
+}
+.md-li__type {
+    font-family:var(--mono); font-size:1.2rem; font-weight:400;
+    color:var(--md-muted); letter-spacing:1px; white-space:nowrap;
 }
 
-.direction-badge.overhead {
-    background: rgba(240, 165, 0, 0.15);
-    color: #f0a500;
+.md-li__stats {
+    display:flex; flex-direction:column; align-items:flex-end;
+    justify-self:end;
+}
+.md-li__stat {
+    font-family:var(--mono); font-size:0.75rem; font-weight:600;
+    color:var(--md-dim); text-align:right; line-height:1.4;
+    font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+.md-li__unit {
+    font-size:0.5rem; font-weight:400; color:var(--md-faint);
+    margin-left:2px;
 }
 
-.compass {
-    font-size: 0.95rem;
-    color: #8888a0;
-}
+/* 11. CONFIG SCREEN
+   ================================================================ */
 
-/* Empty state */
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    flex: 1;
-    opacity: 0.45;
+#screen-config {
+    background:var(--md-bg); padding:12px 28px 12px;
 }
-
-.empty-state.hidden {
-    display: none;
+.cfg-hdr {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:10px;
 }
-
-.empty-icon {
-    font-size: 3.5rem;
-    margin-bottom: 12px;
+.cfg-hdr__title { font-size:1rem; font-weight:600; color:var(--md-text); }
+.cfg-hdr__close {
+    background:none; border:none; color:var(--md-muted); font-size:1.2rem;
+    cursor:pointer; padding:4px 8px;
 }
-
-.empty-state p {
-    font-size: 1.2rem;
-    color: #6868a0;
+.cfg-body {
+    flex:1; display:grid;
+    grid-template-columns:1fr 1fr 1fr 1fr;
+    gap:10px 20px;
+    align-content:start;
+    overflow-y:auto;
 }
-
-/* Footer */
-footer {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: auto;
-    padding-top: 8px;
+.cfg-group { min-width:0; }
+.cfg-group__title {
+    font-family:var(--mono); font-size:0.48rem; font-weight:600;
+    color:var(--md-muted); letter-spacing:2.5px; display:block;
+    margin-bottom:8px; padding-bottom:4px;
+    border-bottom:1px solid var(--md-border);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
-
-.conn-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: inline-block;
+.cfg-field {
+    display:flex; flex-direction:column; margin-bottom:8px;
 }
-
-.conn-dot.connected {
-    background: #4ecca3;
-    box-shadow: 0 0 6px #4ecca3;
+.cfg-field label {
+    font-size:0.6rem; color:var(--md-dim); margin-bottom:3px;
+    text-transform:uppercase; letter-spacing:0.5px;
 }
-
-.conn-dot.disconnected {
-    background: #e94560;
-    box-shadow: 0 0 6px #e94560;
+.cfg-field input {
+    width:100%; padding:10px 12px; border-radius:6px;
+    background:var(--md-surface); border:1px solid var(--md-border);
+    color:var(--md-text); font-family:var(--mono); font-size:0.85rem;
+    outline:none; text-align:right;
 }
+.cfg-field input:focus { border-color:var(--md-blue); }
+.cfg-field--toggle {
+    flex-direction:row; align-items:center; justify-content:space-between;
+    margin-top:auto;
+}
+.cfg-toggle {
+    font-family:var(--mono); font-size:0.7rem; font-weight:600;
+    padding:10px 20px; border-radius:6px; cursor:pointer; border:none;
+    background:var(--md-surface); color:var(--md-muted); letter-spacing:1px;
+    transition:all 0.2s;
+}
+.cfg-toggle.on { background:var(--c-emerald-bg); color:var(--c-emerald); }
+.cfg-actions {
+    display:flex; gap:12px; justify-content:flex-end;
+    padding:10px 28px 0; border-top:1px solid var(--md-border);
+}
+.cfg-btn {
+    font-family:var(--ff); font-size:0.8rem; font-weight:600;
+    padding:10px 28px; border-radius:6px; cursor:pointer; border:none;
+    transition:opacity 0.2s;
+}
+.cfg-btn:active { opacity:0.7; }
+.cfg-btn--save { background:var(--md-blue); color:#fff; }
+.cfg-btn--cancel { background:var(--md-surface); color:var(--md-dim); border:1px solid var(--md-border); }
 
-.conn-label {
-    font-size: 0.7rem;
-    color: #6868a0;
+/* 12. SHARED ANIMATIONS
+   ================================================================ */
+
+@keyframes rowIn {
+    from { opacity:0; transform:translateY(-4px); }
+    to   { opacity:1; transform:translateY(0); }
 }

@@ -30,12 +30,14 @@ class AircraftStateManager:
             "events": [],
         }
 
-    def update(self, aircraft_list: list[dict]) -> dict:
+    def update(self, aircraft_list: list[dict], near_radius_ft: int = 1500, near_altitude_ft: int = 3000) -> dict:
         """Update tracked aircraft from a filtered aircraft list.
 
         Args:
             aircraft_list: Output of geo_filter.filter_aircraft (already has
                 distance_ft, bearing, compass fields), sorted by distance.
+            near_radius_ft: Radius threshold for the near zone (triggers detail view).
+            near_altitude_ft: Altitude threshold for the near zone.
 
         Returns:
             State dict with display, nearby_count, aircraft_list, and events.
@@ -83,30 +85,46 @@ class AircraftStateManager:
             key=lambda a: a.get("distance_ft", float("inf")),
         )
 
-        # Determine display aircraft: closest, or auto-advance if current left
+        # Determine display aircraft: closest in the NEAR zone only
+        near_aircraft = [
+            ac for ac in sorted_active
+            if ac.get("distance_ft", float("inf")) <= near_radius_ft
+            and ac.get("altitude_ft", float("inf")) <= near_altitude_ft
+        ]
+
         display_icao = self._display_aircraft.get("icao24") if self._display_aircraft else None
-        if display_icao and display_icao in self._active:
+        if display_icao and any(ac.get("icao24") == display_icao for ac in near_aircraft):
             self._display_aircraft = self._active[display_icao]
-        elif sorted_active:
-            self._display_aircraft = sorted_active[0]
+        elif near_aircraft:
+            self._display_aircraft = near_aircraft[0]
         else:
             self._display_aircraft = None
 
-        # Build summary list for all active aircraft
+        # Build summary list for all active aircraft (rich data for radar + board views)
         aircraft_summaries = [
             {
                 "icao24": ac.get("icao24"),
-                "callsign": ac.get("callsign", ""),
+                "callsign": ac.get("callsign_raw", ""),
+                "airline": ac.get("airline", ""),
+                "flight_display": ac.get("flight_display", ""),
+                "aircraft_type": ac.get("aircraft_type", ""),
                 "distance_ft": ac.get("distance_ft"),
                 "altitude_ft": ac.get("altitude_ft"),
+                "velocity_kts": ac.get("velocity_kts"),
+                "heading": ac.get("heading"),
+                "bearing": ac.get("bearing", 0),
                 "compass": ac.get("compass", ""),
+                "direction": ac.get("direction", ""),
+                "route_origin": ac.get("route_origin", ""),
+                "route_destination": ac.get("route_destination", ""),
             }
             for ac in sorted_active
         ]
 
         self._state = {
             "display": self._display_aircraft,
-            "nearby_count": len(self._active),
+            "nearby_count": len(near_aircraft),
+            "aircraft_count": len(self._active),
             "aircraft_list": aircraft_summaries,
             "events": events,
         }
