@@ -2,10 +2,12 @@
 
 Polls the OpenSky REST API for live aircraft state vectors
 within a bounding box around the configured home location.
+Uses OAuth2 Client Credentials Flow when credentials are configured.
 """
 
 import logging
 import math
+import time
 
 import requests
 
@@ -19,6 +21,7 @@ MPS_TO_KNOTS = 1.94384
 MPS_TO_FPM = METERS_TO_FEET * 60  # m/s -> ft/min
 
 OPENSKY_API_URL = "https://opensky-network.org/api/states/all"
+OPENSKY_TOKEN_URL = "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token"
 
 # Approximate feet per degree of latitude
 FEET_PER_DEG_LAT = 364_000
@@ -56,6 +59,34 @@ class OpenSkyClient:
             self.config.HOME_LON,
             self.config.RADIUS_LIMIT_FT,
         )
+        self._access_token = None
+        self._token_expires_at = 0
+
+    def _get_access_token(self) -> str | None:
+        """Obtain or refresh an OAuth2 access token."""
+        client_id = self.config.OPENSKY_CLIENT_ID
+        client_secret = self.config.OPENSKY_CLIENT_SECRET
+        if not client_id or not client_secret:
+            return None
+
+        if self._access_token and time.time() < self._token_expires_at - 30:
+            return self._access_token
+
+        try:
+            resp = requests.post(OPENSKY_TOKEN_URL, data={
+                "grant_type": "client_credentials",
+                "client_id": client_id,
+                "client_secret": client_secret,
+            }, headers={"Content-Type": "application/x-www-form-urlencoded"}, timeout=10)
+            resp.raise_for_status()
+            token_data = resp.json()
+            self._access_token = token_data["access_token"]
+            self._token_expires_at = time.time() + token_data.get("expires_in", 300)
+            logger.info("OpenSky OAuth2 token acquired, expires in %ds", token_data.get("expires_in", 300))
+            return self._access_token
+        except requests.RequestException as exc:
+            logger.warning("OpenSky OAuth2 token request failed: %s", exc)
+            return None
 
     def fetch_aircraft(self) -> list[dict]:
         """Fetch live aircraft state vectors within the configured bounding box.
@@ -77,8 +108,13 @@ class OpenSkyClient:
             "lomax": lomax,
         }
 
+        headers = {}
+        token = self._get_access_token()
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
         try:
-            response = requests.get(OPENSKY_API_URL, params=params, timeout=15)
+            response = requests.get(OPENSKY_API_URL, params=params, timeout=15, headers=headers)
             response.raise_for_status()
         except requests.RequestException as exc:
             logger.warning("OpenSky API request failed: %s", exc)
