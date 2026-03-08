@@ -29,6 +29,14 @@ AIRLINE_CODES: dict[str, dict[str, str]] = {
     "ASH": {"name": "Mesa Airlines", "iata": "YV"},
     "CPZ": {"name": "Compass Airlines", "iata": "CP"},
     "EDV": {"name": "Endeavor Air", "iata": "9E"},
+    "UCA": {"name": "United Airlines", "iata": "UA"},  # CommutAir (United Express)
+    "GJS": {"name": "United Airlines", "iata": "UA"},  # GoJet (United Express)
+    "AJI": {"name": "United Airlines", "iata": "UA"},  # AmeriJet operating as United
+    "JIA": {"name": "American Airlines", "iata": "AA"}, # PSA Airlines (American Eagle)
+    "MXY": {"name": "American Airlines", "iata": "AA"}, # Breeze/regional operating as AA
+    "EGF": {"name": "American Airlines", "iata": "AA"}, # American Eagle
+    "QXE": {"name": "Alaska Airlines", "iata": "AS"},   # Horizon Air
+    "FLG": {"name": "Delta Air Lines", "iata": "DL"},   # Chautauqua (Delta Connection)
     "FDX": {"name": "FedEx Express", "iata": "FX"},
     "UPS": {"name": "UPS Airlines", "iata": "5X"},
     # Canada

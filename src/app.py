@@ -19,6 +19,7 @@ from geo_filter import filter_aircraft
 from callsign_decoder import decode_callsign
 from icao_db import icao_db
 from adsbx_client import ADSBXClient
+from flightaware_client import FlightAwareClient
 from state_manager import AircraftStateManager
 from mock_data import MockDataSource
 
@@ -37,10 +38,12 @@ socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")
 state_mgr = AircraftStateManager()
 opensky = OpenSkyClient()
 adsbx = ADSBXClient(api_key=config.ADSBX_API_KEY)
+flightaware = FlightAwareClient(api_key=config.ADSBX_API_KEY)  # reuse the API key field
 mock_source = MockDataSource(config.HOME_LAT, config.HOME_LON)
 
 # Track which icao24s we've already fetched routes for
 _known_icaos: set[str] = set()
+_known_fa_callsigns: set[str] = set()  # FlightAware lookups (near zone only)
 
 
 def poll_aircraft():
@@ -72,16 +75,10 @@ def poll_aircraft():
                 callsign_info = decode_callsign(callsign)
                 icao_info = icao_db.lookup(icao24)
 
-                # Route enrichment: use mock data fields or ADSBX lookup
+                # Route enrichment: use mock data fields only (live routes via FlightAware in step 5)
                 route_info = None
                 if config.MOCK_MODE and ac.get("origin"):
                     route_info = {"origin": ac["origin"], "destination": ac["destination"]}
-                elif icao24 and icao24 not in _known_icaos:
-                    try:
-                        route_info = adsbx.get_route(icao24)
-                    except Exception:
-                        logger.debug("ADSBX route lookup failed for %s", icao24)
-                    _known_icaos.add(icao24)
 
                 # In mock mode, supply typecode when ICAO DB lookup misses
                 if not icao_info and config.MOCK_MODE and ac.get("typecode"):
@@ -97,6 +94,22 @@ def poll_aircraft():
                 near_radius_ft=config.RADIUS_LIMIT_FT,
                 near_altitude_ft=config.ALTITUDE_LIMIT_FT,
             )
+
+            # 5. FlightAware route lookup — only for display aircraft (near zone)
+            # get_route() has internal 10-min cache so repeated calls are free
+            display = state.get("display")
+            if display and not config.MOCK_MODE:
+                callsign = display.get("callsign_raw", "").strip()
+                if callsign:
+                    fa_route = flightaware.get_route(callsign)
+                    if fa_route and fa_route.get("origin"):
+                        display["route_origin"] = fa_route["origin"]
+                        display["route_destination"] = fa_route["destination"]
+                        display["route_display"] = f"{fa_route['origin']} → {fa_route['destination']}"
+                        # Use FA operator as airline fallback
+                        if display.get("airline") == "Unknown" and fa_route.get("operator"):
+                            display["airline"] = fa_route["operator"]
+
             socketio.emit("aircraft_update", state)
 
             if state.get("events"):
