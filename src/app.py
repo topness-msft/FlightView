@@ -237,4 +237,4 @@ if __name__ == "__main__":
     logger.info("  Altitude limit: %s ft | Radius limit: %s ft", config.ALTITUDE_LIMIT_FT, config.RADIUS_LIMIT_FT)
     logger.info("  Poll interval: %ss | Mock mode: %s", config.POLL_INTERVAL_SEC, config.MOCK_MODE)
     socketio.start_background_task(poll_aircraft)
-    socketio.run(app, host="0.0.0.0", port=5000, debug=False)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False, allow_unsafe_werkzeug=True)
