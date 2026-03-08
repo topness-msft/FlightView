@@ -52,6 +52,7 @@
     var CLM = {
         count: document.getElementById("cl-m-count"),
         conn: document.getElementById("cl-m-conn"),
+        radar: document.getElementById("cl-radar"),
         board: document.getElementById("cl-board"),
         empty: document.getElementById("cl-board-empty"),
     };
@@ -196,12 +197,15 @@
     }
 
     // ── Classic Multi Renderer ────────────────────
+    var classicBlips = {};
+
     function updateClassicMulti(list, count) {
         CLM.count.textContent = count + " AIRCRAFT";
+        updateClassicRadarBlips(list);
 
         if (list.length === 0) {
             CLM.empty.classList.remove("hidden");
-            CLM.board.innerHTML = "";
+            CLM.board.querySelectorAll(".cl-strip").forEach(function(el) { el.remove(); });
             return;
         }
         CLM.empty.classList.add("hidden");
@@ -210,8 +214,50 @@
         for (var i = 0; i < list.length && i < 8; i++) {
             frag.appendChild(buildCardStrip(list[i]));
         }
-        CLM.board.innerHTML = "";
+        // Remove old strips but keep the empty-state element
+        CLM.board.querySelectorAll(".cl-strip").forEach(function(el) { el.remove(); });
         CLM.board.appendChild(frag);
+    }
+
+    function updateClassicRadarBlips(list) {
+        var radar = CLM.radar;
+        var rect = radar.getBoundingClientRect();
+        var scopeW = rect.width, scopeH = rect.height;
+        var cx = scopeW / 2, cy = scopeH / 2;
+        var scopeR = (Math.min(scopeW, scopeH) / 2) - 20;
+        var seen = {};
+
+        for (var i = 0; i < list.length; i++) {
+            var ac = list[i];
+            var id = ac.icao24;
+            seen[id] = true;
+
+            var bearing = (ac.bearing || 0) * Math.PI / 180;
+            var dist = ac.distance_ft || 0;
+            var r = Math.min(dist / RADAR_MAX_FT, 1) * scopeR;
+            var x = cx + r * Math.sin(bearing);
+            var y = cy - r * Math.cos(bearing);
+
+            var blip = classicBlips[id];
+            if (!blip) {
+                blip = document.createElement("div"); blip.className = "cl-blip";
+                var dot = document.createElement("div"); dot.className = "cl-blip__dot";
+                var lbl = document.createElement("span"); lbl.className = "cl-blip__label";
+                blip.appendChild(dot); blip.appendChild(lbl);
+                radar.appendChild(blip);
+                classicBlips[id] = blip;
+            }
+            blip.style.left = x + "px";
+            blip.style.top = y + "px";
+            blip.querySelector(".cl-blip__label").textContent = ac.flight_display || ac.callsign || ac.icao24;
+        }
+
+        for (var bid in classicBlips) {
+            if (!seen[bid]) {
+                classicBlips[bid].parentNode.removeChild(classicBlips[bid]);
+                delete classicBlips[bid];
+            }
+        }
     }
 
     function buildCardStrip(ac) {
@@ -219,41 +265,29 @@
         var card = document.createElement("div");
         card.className = "cl-strip " + dirCls(d);
 
-        // Left: flight + airline
-        var left = document.createElement("div"); left.className = "cl-strip__left";
         var fl = document.createElement("span"); fl.className = "cl-strip__flight";
         fl.textContent = ac.flight_display || ac.callsign || "???";
-        var al = document.createElement("span"); al.className = "cl-strip__airline";
-        al.textContent = ac.airline || "Unknown";
-        left.appendChild(fl); left.appendChild(al);
 
-        // Center: route (if available)
-        var route = document.createElement("div"); route.className = "cl-strip__route";
-        if (ac.route_origin && ac.route_destination) {
-            var orig = document.createElement("span"); orig.className = "cl-strip__iata";
-            orig.textContent = ac.route_origin;
-            var arrow = document.createElement("span"); arrow.className = "cl-strip__arrow";
-            arrow.textContent = "✈";
-            var dest = document.createElement("span"); dest.className = "cl-strip__iata";
-            dest.textContent = ac.route_destination;
-            route.appendChild(orig); route.appendChild(arrow); route.appendChild(dest);
-        }
+        var orig = document.createElement("span"); orig.className = "cl-strip__orig";
+        orig.textContent = ac.route_origin || "";
+        var arrow = document.createElement("span"); arrow.className = "cl-strip__arrow";
+        arrow.textContent = (ac.route_origin && ac.route_destination) ? "✈" : "";
+        var dest = document.createElement("span"); dest.className = "cl-strip__dest";
+        dest.textContent = ac.route_destination || "";
 
-        // Stats
+        var tc = ac.aircraft_type || "";
+        var codeParts = tc.split(" ");
+        var typeCode = codeParts.length > 1 ? codeParts[codeParts.length - 1] : tc;
+        var tp = document.createElement("span"); tp.className = "cl-strip__type";
+        tp.textContent = typeCode;
+
         var stats = document.createElement("div"); stats.className = "cl-strip__stats";
-        stats.appendChild(buildStripStat(fmt(ac.altitude_ft), "ALT"));
-        stats.appendChild(buildStripStat(fmt(ac.distance_ft), "DIST"));
+        stats.innerHTML = '<span class="cl-strip-stat__val">' + fmt(ac.altitude_ft) + ' <span class="cl-strip-stat__unit">FT</span></span>'
+            + '<span class="cl-strip-stat__val">' + fmt(ac.distance_ft) + ' <span class="cl-strip-stat__unit">FT</span></span>';
 
-        card.appendChild(left); card.appendChild(route);
-        card.appendChild(stats);
+        card.appendChild(fl); card.appendChild(orig); card.appendChild(arrow);
+        card.appendChild(dest); card.appendChild(tp); card.appendChild(stats);
         return card;
-    }
-
-    function buildStripStat(val, lbl) {
-        var d = document.createElement("div"); d.className = "cl-strip-stat";
-        var v = document.createElement("span"); v.className = "cl-strip-stat__val"; v.textContent = val;
-        var l = document.createElement("span"); l.className = "cl-strip-stat__lbl"; l.textContent = lbl;
-        d.appendChild(v); d.appendChild(l); return d;
     }
 
     function fillFlapsStatic(container, text, sz) {
@@ -478,10 +512,6 @@
 
     socket.on("aircraft_update", function (state) {
         latestState = state;
-        if (state.aircraft_list && state.aircraft_list.length > 0) {
-            var first = state.aircraft_list[0];
-            console.log("DEBUG route data:", first.callsign, "origin:", first.route_origin, "dest:", first.route_destination);
-        }
         resolveScreen();
         updateAll(state);
     });

@@ -102,12 +102,6 @@ def poll_aircraft():
             if state.get("events"):
                 logger.info("Events: %s", state["events"])
 
-            # Debug: log first aircraft summary route data
-            if state.get("aircraft_list"):
-                a0 = state["aircraft_list"][0]
-                logger.info("DEBUG first summary keys: %s", list(a0.keys()))
-                logger.info("DEBUG route: %s -> %s", a0.get("route_origin"), a0.get("route_destination"))
-
         except Exception:
             logger.exception("Error in poll_aircraft loop")
 
@@ -137,12 +131,6 @@ def handle_disconnect():
 def handle_request_update():
     """Handle manual update requests from the client."""
     emit("aircraft_update", state_mgr.get_display_state())
-
-
-@app.route("/api/debug_state")
-def debug_state():
-    """Return current state as JSON for debugging."""
-    return jsonify(state_mgr.get_display_state())
 
 
 # --- Config API ---

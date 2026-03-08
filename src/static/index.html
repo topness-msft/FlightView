@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=19">
+    <link rel="stylesheet" href="/static/style.css?v=20">
 </head>
 <body>
 
@@ -18,7 +18,7 @@
         <button class="nav__cfg" id="btn-config">⚙</button>
     </nav>
 
-    <!-- ========== CLASSIC: MULTI-PLANE (departure board) ========== -->
+    <!-- ========== CLASSIC: MULTI-PLANE (radar + board) ========== -->
     <div class="screen" id="screen-classic-multi">
         <header class="cl-hdr">
             <span class="cl-hdr__title">FLIGHTVIEW</span>
@@ -27,16 +27,25 @@
                 <span id="cl-m-conn" class="hdr-conn"></span>
             </div>
         </header>
-        <div class="cl-board" id="cl-board"></div>
-        <div class="cl-board-empty" id="cl-board-empty">
-            <div class="cl-scan">
-                <div class="cl-scan__ring cl-scan__ring--1"></div>
-                <div class="cl-scan__ring cl-scan__ring--2"></div>
-                <div class="cl-scan__ring cl-scan__ring--3"></div>
-                <div class="cl-scan__arm"></div>
-                <div class="cl-scan__center"></div>
+        <div class="cl-radar-layout">
+            <div class="cl-radar" id="cl-radar">
+                <div class="cl-radar__ring cl-radar__ring--1"></div>
+                <div class="cl-radar__ring cl-radar__ring--2"></div>
+                <div class="cl-radar__ring cl-radar__ring--3"></div>
+                <div class="cl-radar__cross-h"></div>
+                <div class="cl-radar__cross-v"></div>
+                <span class="cl-radar__lbl cl-radar__n">N</span>
+                <span class="cl-radar__lbl cl-radar__e">E</span>
+                <span class="cl-radar__lbl cl-radar__s">S</span>
+                <span class="cl-radar__lbl cl-radar__w">W</span>
+                <div class="cl-radar__sweep"></div>
+                <div class="cl-radar__home"></div>
             </div>
-            <span class="cl-scan__text">SCANNING</span>
+            <div class="cl-board" id="cl-board">
+                <div class="cl-board-empty" id="cl-board-empty">
+                    <span class="cl-scan__text">SCANNING</span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -197,6 +206,6 @@
     </div>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="/static/app.js?v=17"></script>
+    <script src="/static/app.js?v=20"></script>
 </body>
 </html>

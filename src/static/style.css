@@ -233,102 +233,139 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 .cl-status-txt { font-size:0.78rem; color:var(--cl-gray); }
 .cl-status-hdg { font-family:var(--mono); font-size:0.7rem; color:var(--cl-dk-gray); }
 
-/* 7. CLASSIC: MULTI-PLANE CARD STRIPS
+/* 7. CLASSIC: MULTI-PLANE RADAR + CARD STRIPS
    ================================================================ */
 
-.cl-board { flex:1; overflow:hidden; display:flex; flex-direction:column; gap:5px; padding-top:4px; }
+.cl-radar-layout {
+    flex:1; display:flex; gap:0; align-items:stretch; min-height:0;
+}
 
+/* Classic radar scope — warm amber theme */
+.cl-radar {
+    position:relative; flex-shrink:0; width:40%;
+}
+.cl-radar__ring {
+    position:absolute; top:50%; left:50%; border-radius:50%;
+    border:1px solid rgba(240,200,80,0.08); transform:translate(-50%,-50%);
+}
+.cl-radar__ring--1 { width:33.3%; height:33.3%; }
+.cl-radar__ring--2 { width:66.6%; height:66.6%; }
+.cl-radar__ring--3 { width:100%; height:100%; }
+
+.cl-radar__cross-h, .cl-radar__cross-v {
+    position:absolute; background:rgba(240,200,80,0.05);
+}
+.cl-radar__cross-h { top:50%; left:0; right:0; height:1px; }
+.cl-radar__cross-v { left:50%; top:0; bottom:0; width:1px; }
+
+.cl-radar__lbl {
+    position:absolute; font-family:var(--mono); font-size:0.5rem;
+    font-weight:600; color:rgba(240,200,80,0.25); letter-spacing:1px;
+}
+.cl-radar__n { top:2px; left:50%; transform:translateX(-50%); }
+.cl-radar__s { bottom:2px; left:50%; transform:translateX(-50%); }
+.cl-radar__e { right:2px; top:50%; transform:translateY(-50%); }
+.cl-radar__w { left:2px; top:50%; transform:translateY(-50%); }
+
+.cl-radar__sweep {
+    position:absolute; top:50%; left:50%; width:50%; height:1px;
+    transform-origin:0% 50%;
+    background:linear-gradient(90deg,rgba(240,200,80,0.35),transparent);
+    animation:sweep 4s linear infinite; will-change:transform;
+}
+.cl-radar__home {
+    position:absolute; top:50%; left:50%; width:6px; height:6px;
+    border-radius:50%; background:var(--cl-amber); transform:translate(-50%,-50%);
+    box-shadow:0 0 10px var(--cl-amber-glow);
+}
+
+/* Classic blips */
+.cl-blip {
+    position:absolute; pointer-events:none;
+    transition: left 0.8s ease, top 0.8s ease;
+}
+.cl-blip__dot {
+    width:8px; height:8px; border-radius:50%; background:var(--cl-amber);
+    box-shadow:0 0 8px var(--cl-amber-glow);
+    transform:translate(-50%,-50%);
+}
+.cl-blip__label {
+    position:absolute; left:10px; top:-6px; white-space:nowrap;
+    font-family:var(--mono); font-size:0.55rem; font-weight:500;
+    color:var(--cl-amber-dim); letter-spacing:0.5px;
+}
+
+/* Classic board (card list) */
+.cl-board {
+    flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:6px;
+    padding:0 16px; min-width:0; position:relative;
+}
+
+/* Card strips — grid layout matching modern */
 .cl-strip {
-    display:flex; align-items:center; gap:12px;
+    display:grid;
+    grid-template-columns: 1.2fr 0.8fr 20px 0.8fr 1.2fr 80px;
+    align-items:center; justify-items:center;
     background:var(--cl-surface); border:1px solid var(--cl-faint);
     border-left:3px solid var(--cl-faint);
-    border-radius:5px; padding:8px 14px;
+    border-radius:5px; padding:8px 14px; flex-shrink:0;
     position:relative;
     animation: rowIn 0.3s ease-out;
 }
 .cl-strip.approaching { border-left-color:var(--c-emerald); }
 .cl-strip.departing   { border-left-color:var(--c-rose); }
 .cl-strip.overhead    { border-left-color:var(--cl-amber); }
-/* Split-flap center line on each card */
 .cl-strip::after {
     content:''; position:absolute; left:0; right:0;
     top:calc(50% - 0.5px); height:1px;
-    background:rgba(8,8,6,0.35);
-    pointer-events:none;
+    background:rgba(8,8,6,0.35); pointer-events:none;
 }
-.cl-strip__left {
-    display:flex; flex-direction:column; gap:1px; min-width:110px; flex-shrink:0;
-    position:relative; z-index:1;
-}
+
 .cl-strip__flight {
-    font-family:var(--mono); font-size:0.88rem; font-weight:700;
-    color:var(--cl-amber); letter-spacing:1px;
+    font-family:var(--mono); font-size:1.2rem; font-weight:700;
+    color:var(--cl-amber); letter-spacing:1px; justify-self:start;
+    position:relative; z-index:1; white-space:nowrap;
 }
-.cl-strip__airline {
-    font-family:var(--ff); font-size:0.68rem; font-weight:400;
-    color:var(--cl-gray);
-}
-.cl-strip__route {
-    display:flex; align-items:center; gap:6px; flex:1; justify-content:center;
-    position:relative; z-index:1;
-}
-.cl-strip__iata {
-    font-family:var(--mono); font-size:0.82rem; font-weight:700;
-    color:var(--cl-cream); letter-spacing:1.5px;
+.cl-strip__orig {
+    font-family:var(--mono); font-size:1.2rem; font-weight:700;
+    color:var(--cl-cream); letter-spacing:2px;
+    position:relative; z-index:1; white-space:nowrap;
 }
 .cl-strip__arrow {
-    font-size:0.55rem; color:var(--cl-amber-ghost);
-}
-.cl-strip__stats {
-    display:flex; gap:14px; align-items:center; flex-shrink:0;
+    font-size:0.7rem; color:var(--cl-amber-ghost);
     position:relative; z-index:1;
 }
-.cl-strip-stat {
-    text-align:center; min-width:42px;
+.cl-strip__dest {
+    font-family:var(--mono); font-size:1.2rem; font-weight:700;
+    color:var(--cl-cream); letter-spacing:2px;
+    position:relative; z-index:1; white-space:nowrap;
+}
+.cl-strip__type {
+    font-family:var(--mono); font-size:1.2rem; font-weight:400;
+    color:var(--cl-gray); letter-spacing:1px;
+    position:relative; z-index:1; white-space:nowrap;
+}
+
+.cl-strip__stats {
+    display:flex; flex-direction:column; align-items:flex-end;
+    justify-self:end; position:relative; z-index:1;
 }
 .cl-strip-stat__val {
-    font-family:var(--mono); font-size:0.78rem; font-weight:600;
-    color:var(--cl-cream); display:block; line-height:1.2;
+    font-family:var(--mono); font-size:0.75rem; font-weight:600;
+    color:var(--cl-cream); line-height:1.4; text-align:right;
+    font-variant-numeric:tabular-nums; white-space:nowrap;
 }
-.cl-strip-stat__lbl {
-    font-family:var(--mono); font-size:0.35rem; font-weight:500;
-    color:var(--cl-dk-gray); letter-spacing:2px; display:block;
+.cl-strip-stat__unit {
+    font-size:0.45rem; font-weight:400; color:var(--cl-dk-gray);
+    letter-spacing:1px; margin-left:2px;
 }
-.cl-strip__dir {
-    font-family:var(--mono); font-size:0.48rem; font-weight:700;
-    letter-spacing:1.5px; padding:3px 8px; border-radius:3px;
-    min-width:36px; text-align:center;
-    position:relative; z-index:1;
-}
-.cl-strip__dir.approaching { color:var(--c-emerald); background:rgba(80,200,120,0.1); }
-.cl-strip__dir.departing   { color:var(--c-rose); background:rgba(232,93,117,0.1); }
-.cl-strip__dir.overhead    { color:var(--cl-amber); background:rgba(240,200,80,0.08); }
 
-/* Scanning empty state */
+/* Empty state */
 .cl-board-empty {
-    position:absolute; inset:0; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; gap:24px; z-index:2;
-    transition:opacity 0.5s;
+    display:flex; align-items:center; justify-content:center;
+    padding:20px; transition:opacity 0.5s;
 }
 .cl-board-empty.hidden { opacity:0; pointer-events:none; }
-.cl-scan { position:relative; width:140px; height:140px; }
-.cl-scan__ring {
-    position:absolute; top:50%; left:50%; border-radius:50%;
-    border:1px solid rgba(240,200,80,0.06); transform:translate(-50%,-50%);
-}
-.cl-scan__ring--1 { width:45px; height:45px; }
-.cl-scan__ring--2 { width:90px; height:90px; }
-.cl-scan__ring--3 { width:135px; height:135px; }
-.cl-scan__center {
-    position:absolute; top:50%; left:50%; width:4px; height:4px; border-radius:50%;
-    background:var(--cl-amber); transform:translate(-50%,-50%);
-    box-shadow:0 0 8px var(--cl-amber-glow);
-}
-.cl-scan__arm {
-    position:absolute; top:50%; left:50%; width:68px; height:1px;
-    transform-origin:0% 50%; background:linear-gradient(90deg,rgba(240,200,80,0.4),transparent);
-    animation:sweep 4s linear infinite; will-change:transform;
-}
 @keyframes sweep { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 .cl-scan__text {
     font-family:var(--mono); font-size:0.6rem; font-weight:600;
