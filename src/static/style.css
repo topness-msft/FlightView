@@ -358,10 +358,10 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     padding:0 16px; min-width:0; position:relative;
 }
 
-/* Card strips — grid layout matching modern */
+/* Card strips — grid layout */
 .cl-strip {
     display:grid;
-    grid-template-columns: 1.2fr 0.8fr 20px 0.8fr 1.2fr 80px;
+    grid-template-columns: 1fr 1.5fr 1fr 80px;
     align-items:center; justify-items:center;
     background:var(--cl-surface); border:1px solid var(--cl-faint);
     border-left:3px solid var(--cl-faint);
@@ -388,9 +388,9 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     white-space:nowrap;
 }
 .cl-strip__airline {
-    font-size:0.6rem; font-weight:400; color:var(--cl-dk-gray);
+    font-size:1.2rem; font-weight:400; color:var(--cl-gray);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    max-width:100%; line-height:1.2;
+    position:relative; z-index:1;
 }
 .cl-strip__orig {
     font-family:var(--mono); font-size:1.2rem; font-weight:700;
@@ -645,7 +645,7 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     background:var(--md-surface); border:1px solid var(--md-border);
     border-radius:6px; padding:8px 14px; flex-shrink:0;
     display:grid;
-    grid-template-columns: 1.2fr 0.8fr 20px 0.8fr 1.2fr 80px;
+    grid-template-columns: 1fr 1.5fr 1fr 80px;
     align-items:center; justify-items:center;
     animation: rowIn 0.3s ease-out;
 }
@@ -659,9 +659,9 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     color:var(--md-blue-bright); letter-spacing:0.5px; white-space:nowrap;
 }
 .md-li__airline {
-    font-size:0.6rem; font-weight:400; color:var(--md-muted);
+    font-size:1.2rem; font-weight:400; color:var(--md-dim);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    max-width:100%; line-height:1.2;
+    position:relative; z-index:1;
 }
 .md-li__orig {
     font-family:var(--mono); font-size:1.2rem; font-weight:700;

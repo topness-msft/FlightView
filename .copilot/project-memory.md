@@ -2,7 +2,7 @@
 
 ## Repository
 - **GitHub:** https://github.com/topness-msft/FlightView
-- **Local path:** C:\Users\user\copilot\projects\flightview
+- **Local path:** projects/flightview
 - **Branch:** main
 
 ## What It Is
