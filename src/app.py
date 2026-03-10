@@ -15,6 +15,7 @@ from flask_socketio import SocketIO, emit
 
 from config import config
 from opensky_client import OpenSkyClient
+from dump1090_client import Dump1090Client, Dump1090Error
 from geo_filter import filter_aircraft
 from callsign_decoder import decode_callsign
 from icao_db import icao_db
@@ -37,6 +38,7 @@ socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")
 # --- Shared module instances ---
 state_mgr = AircraftStateManager()
 opensky = OpenSkyClient()
+dump1090 = Dump1090Client(base_url=config.DUMP1090_URL)
 adsbx = ADSBXClient(api_key=config.ADSBX_API_KEY)
 flightaware = FlightAwareClient(api_key=config.ADSBX_API_KEY)  # reuse the API key field
 mock_source = MockDataSource(config.HOME_LAT, config.HOME_LON)
@@ -45,17 +47,54 @@ mock_source = MockDataSource(config.HOME_LAT, config.HOME_LON)
 _known_icaos: set[str] = set()
 _known_fa_callsigns: set[str] = set()  # FlightAware lookups (near zone only)
 
+# --- Health state (pushed to frontend with each update) ---
+_health: dict = {
+    "status": "ok",         # "ok" | "error"
+    "message": "",          # Human-readable description
+    "last_success": None,   # Epoch timestamp of last successful poll
+    "data_source": config.DATA_SOURCE,
+}
+
+
+def _fetch_from_source() -> list[dict]:
+    """Fetch aircraft from the configured data source.
+
+    Returns the aircraft list on success.
+    Raises Dump1090Error for RTL-SDR failures so the caller can
+    update health state.  OpenSky failures return [] (non-critical).
+    """
+    src = config.DATA_SOURCE
+
+    if src == "mock":
+        return mock_source.fetch_aircraft()
+    elif src == "rtlsdr":
+        return dump1090.fetch_aircraft()  # raises Dump1090Error on failure
+    else:  # "opensky" or unknown
+        return opensky.fetch_aircraft()
+
 
 def poll_aircraft():
     """Background loop: fetch, filter, enrich, and broadcast aircraft data."""
-    logger.info("Poller started")
+    logger.info("Poller started — data source: %s", config.DATA_SOURCE)
     while True:
         try:
-            # 1. Fetch raw aircraft
-            if config.MOCK_MODE:
-                raw = mock_source.fetch_aircraft()
-            else:
-                raw = opensky.fetch_aircraft()
+            # 1. Fetch raw aircraft (with health tracking)
+            try:
+                raw = _fetch_from_source()
+                _health["status"] = "ok"
+                _health["message"] = ""
+                _health["last_success"] = time.time()
+                _health["data_source"] = config.DATA_SOURCE
+            except Dump1090Error as exc:
+                _health["status"] = "error"
+                _health["message"] = str(exc)
+                _health["data_source"] = config.DATA_SOURCE
+                # Broadcast error state so frontend shows the alert
+                error_state = state_mgr.get_display_state()
+                error_state["health"] = dict(_health)
+                socketio.emit("aircraft_update", error_state)
+                time.sleep(config.POLL_INTERVAL_SEC)
+                continue
 
             # 2. Geographic filter — use wider radar zone
             filtered = filter_aircraft(
@@ -110,6 +149,8 @@ def poll_aircraft():
                         if display.get("airline") == "Unknown" and fa_route.get("operator"):
                             display["airline"] = fa_route["operator"]
 
+            # 6. Attach health state and broadcast
+            state["health"] = dict(_health)
             socketio.emit("aircraft_update", state)
 
             if state.get("events"):
@@ -161,6 +202,8 @@ def get_config():
         "poll_interval_sec": config.POLL_INTERVAL_SEC,
         "adsbx_api_key": config.ADSBX_API_KEY,
         "mock_mode": config.MOCK_MODE,
+        "data_source": config.DATA_SOURCE,
+        "dump1090_url": config.DUMP1090_URL,
     })
 
 
@@ -189,6 +232,13 @@ def set_config():
         adsbx.enabled = bool(config.ADSBX_API_KEY)
     if "mock_mode" in data:
         config.MOCK_MODE = str(data["mock_mode"]).lower() in ("true", "1", "yes")
+    if "data_source" in data:
+        config.DATA_SOURCE = str(data["data_source"]).lower()
+        config.MOCK_MODE = config.DATA_SOURCE == "mock"
+    if "dump1090_url" in data:
+        config.DUMP1090_URL = str(data["dump1090_url"]).rstrip("/")
+        dump1090.base_url = config.DUMP1090_URL
+        dump1090._aircraft_url = f"{config.DUMP1090_URL}/data/aircraft.json"
 
     _save_env(data)
     logger.info("Config updated: %s", list(data.keys()))
@@ -207,6 +257,8 @@ def _save_env(updates: dict) -> None:
         "poll_interval_sec": "POLL_INTERVAL_SEC",
         "adsbx_api_key": "ADSBX_API_KEY",
         "mock_mode": "MOCK_MODE",
+        "data_source": "DATA_SOURCE",
+        "dump1090_url": "DUMP1090_URL",
     }
     env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
 
@@ -234,7 +286,7 @@ def _save_env(updates: dict) -> None:
 
 if __name__ == "__main__":
     logger.info("FlightView starting — Home: (%s, %s)", config.HOME_LAT, config.HOME_LON)
+    logger.info("  Data source: %s | Poll interval: %ss", config.DATA_SOURCE, config.POLL_INTERVAL_SEC)
     logger.info("  Altitude limit: %s ft | Radius limit: %s ft", config.ALTITUDE_LIMIT_FT, config.RADIUS_LIMIT_FT)
-    logger.info("  Poll interval: %ss | Mock mode: %s", config.POLL_INTERVAL_SEC, config.MOCK_MODE)
     socketio.start_background_task(poll_aircraft)
     socketio.run(app, host="0.0.0.0", port=5000, debug=False, allow_unsafe_werkzeug=True)

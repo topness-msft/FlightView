@@ -8,9 +8,18 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=32">
+    <link rel="stylesheet" href="/static/style.css?v=33">
 </head>
 <body>
+
+    <!-- ========== HEALTH ERROR BANNER (overlay, all views) ========== -->
+    <div class="health-banner" id="health-banner">
+        <div class="health-banner__icon">⚠</div>
+        <div class="health-banner__text">
+            <span class="health-banner__title" id="health-title">ADS-B receiver offline</span>
+            <span class="health-banner__detail" id="health-detail">Check SDR connection</span>
+        </div>
+    </div>
 
     <!-- ========== NAVIGATION (always visible) ========== -->
     <nav class="nav" id="nav">
@@ -184,8 +193,15 @@
             </div>
             <div class="cfg-group">
                 <span class="cfg-group__title">DATA SOURCE</span>
+                <div class="cfg-field"><label>Source</label>
+                    <select id="cfg-datasource" class="cfg-select">
+                        <option value="rtlsdr">RTL-SDR (dump1090)</option>
+                        <option value="opensky">OpenSky Network</option>
+                        <option value="mock">Mock (dev)</option>
+                    </select>
+                </div>
+                <div class="cfg-field"><label>dump1090 URL</label><input type="text" id="cfg-dump1090-url" placeholder="http://localhost:8080"></div>
                 <div class="cfg-field"><label>Poll interval (s)</label><input type="number" id="cfg-poll" min="1" max="60"></div>
-                <div class="cfg-field cfg-field--toggle"><label>Mock mode</label><button id="cfg-mock" class="cfg-toggle">OFF</button></div>
                 <div class="cfg-field"><label>FlightAware API Key</label><input type="password" id="cfg-apikey" placeholder="Optional"></div>
             </div>
         </div>
@@ -196,6 +212,6 @@
     </div>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="/static/app.js?v=32"></script>
+    <script src="/static/app.js?v=33"></script>
 </body>
 </html>

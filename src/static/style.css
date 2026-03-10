@@ -112,6 +112,25 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 .hdr-conn.ok { background:var(--c-emerald); box-shadow:0 0 6px rgba(52,211,153,0.5); }
 .hdr-conn.err { background:var(--c-rose); box-shadow:0 0 6px rgba(251,113,133,0.4); }
 
+/* Health error banner — fixed overlay across all views */
+.health-banner {
+    position:fixed; top:0; left:0; right:0; z-index:200;
+    display:flex; align-items:center; gap:10px;
+    padding:8px 16px;
+    background:rgba(180,40,40,0.92); color:#fff;
+    font-family:var(--ff); font-size:0.75rem;
+    transform:translateY(-100%); opacity:0;
+    transition:transform 0.35s ease, opacity 0.35s ease;
+    pointer-events:none;
+}
+.health-banner.visible {
+    transform:translateY(0); opacity:1; pointer-events:auto;
+}
+.health-banner__icon { font-size:1.2rem; flex-shrink:0; }
+.health-banner__text { display:flex; flex-direction:column; gap:1px; }
+.health-banner__title { font-weight:600; font-size:0.8rem; }
+.health-banner__detail { opacity:0.8; font-size:0.65rem; }
+
 /* 4. SPLIT-FLAP CELLS (shared by classic)
    ================================================================ */
 
@@ -751,6 +770,12 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     transition:all 0.2s;
 }
 .cfg-toggle.on { background:var(--c-emerald-bg); color:var(--c-emerald); }
+.cfg-select {
+    font-family:var(--mono); font-size:0.7rem;
+    padding:8px 12px; border-radius:6px; border:1px solid var(--md-border);
+    background:var(--md-surface); color:var(--md-text);
+    cursor:pointer; width:100%;
+}
 .cfg-actions {
     display:flex; gap:12px; justify-content:flex-end;
     padding:10px 28px 0; border-top:1px solid var(--md-border);

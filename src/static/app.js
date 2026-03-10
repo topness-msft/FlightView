@@ -89,9 +89,15 @@
         radarAlt: document.getElementById("cfg-radar-alt"),
         radarRadius: document.getElementById("cfg-radar-radius"),
         poll: document.getElementById("cfg-poll"),
-        mock: document.getElementById("cfg-mock"),
+        datasource: document.getElementById("cfg-datasource"),
+        dump1090Url: document.getElementById("cfg-dump1090-url"),
         apikey: document.getElementById("cfg-apikey"),
     };
+
+    // Health banner refs
+    var healthBanner = document.getElementById("health-banner");
+    var healthTitle = document.getElementById("health-title");
+    var healthDetail = document.getElementById("health-detail");
 
     // ── Screen Manager ────────────────────────────
     function showScreen(id) {
@@ -652,8 +658,8 @@
             CFG.radarRadius.value = cfg.radar_radius_ft;
             CFG.poll.value = cfg.poll_interval_sec;
             CFG.apikey.value = cfg.adsbx_api_key || "";
-            CFG.mock.textContent = cfg.mock_mode ? "ON" : "OFF";
-            CFG.mock.classList.toggle("on", cfg.mock_mode);
+            CFG.datasource.value = cfg.data_source || "rtlsdr";
+            CFG.dump1090Url.value = cfg.dump1090_url || "http://localhost:8080";
             showScreen("config");
         });
     }
@@ -673,7 +679,8 @@
             radar_radius_ft: parseInt(CFG.radarRadius.value),
             poll_interval_sec: parseInt(CFG.poll.value),
             adsbx_api_key: CFG.apikey.value,
-            mock_mode: CFG.mock.textContent === "ON",
+            data_source: CFG.datasource.value,
+            dump1090_url: CFG.dump1090Url.value,
         };
         fetch("/api/config", {
             method: "POST",
@@ -682,10 +689,27 @@
         }).then(function () { closeConfig(); });
     }
 
-    function toggleMock() {
-        var isOn = CFG.mock.textContent === "ON";
-        CFG.mock.textContent = isOn ? "OFF" : "ON";
-        CFG.mock.classList.toggle("on", !isOn);
+    // ── Health Banner ─────────────────────────────
+    function updateHealthBanner(health) {
+        if (!health || health.status === "ok") {
+            healthBanner.classList.remove("visible");
+            return;
+        }
+        var src = (health.data_source || "rtlsdr").toUpperCase();
+        var titles = {
+            "RTLSDR": "ADS-B receiver offline",
+            "OPENSKY": "OpenSky API unreachable",
+            "MOCK": "Mock source error",
+        };
+        healthTitle.textContent = titles[src] || "Data source error";
+
+        var detail = health.message || "Check connection";
+        if (health.last_success) {
+            var ago = Math.round((Date.now() / 1000 - health.last_success));
+            if (ago > 0) detail += " · last data " + ago + "s ago";
+        }
+        healthDetail.textContent = detail;
+        healthBanner.classList.add("visible");
     }
 
     // ── Events ────────────────────────────────────
@@ -694,7 +718,6 @@
     btnCfgClose.addEventListener("click", closeConfig);
     btnCfgSave.addEventListener("click", saveConfig);
     btnCfgCancel.addEventListener("click", closeConfig);
-    CFG.mock.addEventListener("click", toggleMock);
 
     // ── Socket.IO ─────────────────────────────────
     var connEls = [
@@ -714,6 +737,7 @@
 
     socket.on("aircraft_update", function (state) {
         latestState = state;
+        updateHealthBanner(state.health);
         resolveScreen();
         updateAll(state);
     });

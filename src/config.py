@@ -30,6 +30,16 @@ class Config:
     OPENSKY_CLIENT_ID: str = os.getenv("OPENSKY_CLIENT_ID", "")
     OPENSKY_CLIENT_SECRET: str = os.getenv("OPENSKY_CLIENT_SECRET", "")
     MOCK_MODE: bool = os.getenv("MOCK_MODE", "False").lower() in ("true", "1", "yes")
+    DATA_SOURCE: str = os.getenv("DATA_SOURCE", "")
+    DUMP1090_URL: str = os.getenv("DUMP1090_URL", "http://localhost:8080")
+
+    def __post_init__(self):
+        """Resolve DATA_SOURCE with backward compatibility for MOCK_MODE."""
+        if not self.DATA_SOURCE:
+            # Legacy: MOCK_MODE=true → data_source=mock, else default to rtlsdr
+            self.DATA_SOURCE = "mock" if self.MOCK_MODE else "rtlsdr"
+        # Keep MOCK_MODE in sync for backward compat
+        self.MOCK_MODE = self.DATA_SOURCE == "mock"
 
 
 config = Config()
