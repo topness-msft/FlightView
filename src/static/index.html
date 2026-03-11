@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=33">
+    <link rel="stylesheet" href="/static/style.css?v=34">
 </head>
 <body>
 
@@ -48,6 +48,7 @@
                 <span class="cl-radar__lbl cl-radar__s">S</span>
                 <span class="cl-radar__lbl cl-radar__w">W</span>
                 <div class="cl-radar__sweep"></div>
+                <div class="cl-radar__near-zone" id="cl-near-zone"></div>
                 <div class="cl-radar__home"></div>
             </div>
             <div class="cl-board" id="cl-board">
@@ -115,6 +116,7 @@
                 <span class="md-radar__lbl md-radar__s">S</span>
                 <span class="md-radar__lbl md-radar__w">W</span>
                 <div class="md-radar__sweep"></div>
+                <div class="md-radar__near-zone" id="md-near-zone"></div>
                 <div class="md-radar__home"></div>
             </div>
             <div class="md-list" id="md-list">
@@ -212,6 +214,6 @@
     </div>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="/static/app.js?v=33"></script>
+    <script src="/static/app.js?v=34"></script>
 </body>
 </html>

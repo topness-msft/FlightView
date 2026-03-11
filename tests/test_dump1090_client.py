@@ -108,8 +108,8 @@ class TestFetchAircraft:
     @patch("dump1090_client.requests.get")
     def test_successful_fetch(self, mock_get):
         mock_resp = MagicMock()
+        mock_resp.status_code = 200
         mock_resp.json.return_value = SAMPLE_AIRCRAFT_JSON
-        mock_resp.raise_for_status.return_value = None
         mock_get.return_value = mock_resp
 
         client = Dump1090Client("http://localhost:8080")
@@ -122,8 +122,8 @@ class TestFetchAircraft:
     @patch("dump1090_client.requests.get")
     def test_empty_aircraft_list(self, mock_get):
         mock_resp = MagicMock()
+        mock_resp.status_code = 200
         mock_resp.json.return_value = {"now": 0, "aircraft": []}
-        mock_resp.raise_for_status.return_value = None
         mock_get.return_value = mock_resp
 
         client = Dump1090Client()
@@ -140,8 +140,8 @@ class TestFetchAircraft:
             ]
         }
         mock_resp = MagicMock()
+        mock_resp.status_code = 200
         mock_resp.json.return_value = data
-        mock_resp.raise_for_status.return_value = None
         mock_get.return_value = mock_resp
 
         client = Dump1090Client()
@@ -162,7 +162,7 @@ class TestFetchAircraft:
     @patch("dump1090_client.requests.get")
     def test_invalid_json_raises(self, mock_get):
         mock_resp = MagicMock()
-        mock_resp.raise_for_status.return_value = None
+        mock_resp.status_code = 200
         mock_resp.json.side_effect = ValueError("bad json")
         mock_get.return_value = mock_resp
 
@@ -209,11 +209,12 @@ class TestHealthTracking:
 
         # Then a success
         mock_resp = MagicMock()
+        mock_resp.status_code = 200
         mock_resp.json.return_value = {"aircraft": []}
-        mock_resp.raise_for_status.return_value = None
         mock_get.side_effect = None
         mock_get.return_value = mock_resp
 
+        client._aircraft_url = None  # reset cached URL after failures
         client.fetch_aircraft()
         assert client.consecutive_failures == 0
         assert client.last_success is not None
@@ -221,8 +222,8 @@ class TestHealthTracking:
     @patch("dump1090_client.requests.get")
     def test_last_success_updates(self, mock_get):
         mock_resp = MagicMock()
+        mock_resp.status_code = 200
         mock_resp.json.return_value = {"aircraft": []}
-        mock_resp.raise_for_status.return_value = None
         mock_get.return_value = mock_resp
 
         client = Dump1090Client()
@@ -241,7 +242,7 @@ class TestHealthCheck:
     @patch("dump1090_client.requests.get")
     def test_healthy(self, mock_get):
         mock_resp = MagicMock()
-        mock_resp.raise_for_status.return_value = None
+        mock_resp.status_code = 200
         mock_get.return_value = mock_resp
 
         client = Dump1090Client()
@@ -256,7 +257,7 @@ class TestHealthCheck:
         client = Dump1090Client()
         result = client.health_check()
         assert result["ok"] is False
-        assert "refused" in result["message"]
+        assert "Cannot connect" in result["message"]
 
 
 class TestConfigBackwardCompat:

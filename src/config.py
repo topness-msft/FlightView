@@ -27,6 +27,7 @@ class Config:
     RADAR_RADIUS_FT: int = int(os.getenv("RADAR_RADIUS_FT", "15000"))
     POLL_INTERVAL_SEC: int = int(os.getenv("POLL_INTERVAL_SEC", "5"))
     ADSBX_API_KEY: str = os.getenv("ADSBX_API_KEY", "")
+    FLIGHTAWARE_API_KEY: str = os.getenv("FLIGHTAWARE_API_KEY", "")
     OPENSKY_CLIENT_ID: str = os.getenv("OPENSKY_CLIENT_ID", "")
     OPENSKY_CLIENT_SECRET: str = os.getenv("OPENSKY_CLIENT_SECRET", "")
     MOCK_MODE: bool = os.getenv("MOCK_MODE", "False").lower() in ("true", "1", "yes")

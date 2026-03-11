@@ -40,7 +40,7 @@ state_mgr = AircraftStateManager()
 opensky = OpenSkyClient()
 dump1090 = Dump1090Client(base_url=config.DUMP1090_URL)
 adsbx = ADSBXClient(api_key=config.ADSBX_API_KEY)
-flightaware = FlightAwareClient(api_key=config.ADSBX_API_KEY)  # reuse the API key field
+flightaware = FlightAwareClient(api_key=config.FLIGHTAWARE_API_KEY or config.ADSBX_API_KEY)
 mock_source = MockDataSource(config.HOME_LAT, config.HOME_LON)
 
 # Track which icao24s we've already fetched routes for
@@ -238,7 +238,11 @@ def set_config():
     if "dump1090_url" in data:
         config.DUMP1090_URL = str(data["dump1090_url"]).rstrip("/")
         dump1090.base_url = config.DUMP1090_URL
-        dump1090._aircraft_url = f"{config.DUMP1090_URL}/data/aircraft.json"
+        dump1090._aircraft_url = None  # reset to re-detect endpoint
+        dump1090._aircraft_urls = [
+            f"{config.DUMP1090_URL}/?all",
+            f"{config.DUMP1090_URL}/data/aircraft.json",
+        ]
 
     _save_env(data)
     logger.info("Config updated: %s", list(data.keys()))

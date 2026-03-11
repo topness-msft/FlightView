@@ -5,6 +5,7 @@
     // ── Config ────────────────────────────────────
     var FLIP_STAGGER = 25, FLIP_DURATION = 140;
     var RADAR_MAX_FT = 5000;
+    var NEAR_RADIUS_FT = 3000;
 
     // ── State ─────────────────────────────────────
     var theme = localStorage.getItem("fv_theme") || "classic";
@@ -122,6 +123,7 @@
         btnTheme.textContent = theme.toUpperCase();
         showScreen(theme + "-" + currentView);
         if (latestState) updateAll(latestState);
+        requestAnimationFrame(sizeNearZone);
     }
 
     // ── Flap Engine ───────────────────────────────
@@ -421,18 +423,40 @@
 
         if (list.length === 0) {
             CLM.empty.classList.remove("hidden");
-            CLM.board.querySelectorAll(".cl-strip").forEach(function(el) { el.remove(); });
+            // Animate out remaining strips
+            CLM.board.querySelectorAll(".cl-strip:not(.removing)").forEach(function(el) {
+                el.classList.add("removing");
+                el.addEventListener("animationend", function() { el.remove(); }, { once: true });
+            });
             return;
         }
         CLM.empty.classList.add("hidden");
 
-        var frag = document.createDocumentFragment();
-        for (var i = 0; i < list.length && i < 8; i++) {
-            frag.appendChild(buildCardStrip(list[i]));
+        var maxStrips = 8;
+        var showList = list.slice(0, maxStrips);
+        var newIds = {};
+        for (var i = 0; i < showList.length; i++) newIds[showList[i].icao24] = showList[i];
+
+        // Animate out strips no longer in list
+        CLM.board.querySelectorAll(".cl-strip:not(.removing)").forEach(function(el) {
+            if (!newIds[el.dataset.icao]) {
+                el.classList.add("removing");
+                el.addEventListener("animationend", function() { el.remove(); }, { once: true });
+            }
+        });
+
+        // Update or insert strips
+        for (var i = 0; i < showList.length; i++) {
+            var ac = showList[i];
+            var existing = CLM.board.querySelector('.cl-strip[data-icao="' + ac.icao24 + '"]:not(.removing)');
+            if (existing) {
+                updateCardStrip(existing, ac);
+            } else {
+                var strip = buildCardStrip(ac);
+                strip.dataset.icao = ac.icao24;
+                CLM.board.appendChild(strip);
+            }
         }
-        // Remove old strips but keep the empty-state element
-        CLM.board.querySelectorAll(".cl-strip").forEach(function(el) { el.remove(); });
-        CLM.board.appendChild(frag);
     }
 
     function updateClassicRadarBlips(list) {
@@ -465,6 +489,8 @@
             }
             blip.style.left = x + "px";
             blip.style.top = y + "px";
+            var hdg = ac.heading || 0;
+            blip.querySelector(".cl-blip__dot").style.transform = "translate(-50%,-50%) rotate(" + hdg + "deg)";
             blip.querySelector(".cl-blip__label").textContent = ac.flight_display || ac.callsign || ac.icao24;
         }
 
@@ -502,6 +528,27 @@
         card.appendChild(left); card.appendChild(al);
         card.appendChild(tp); card.appendChild(stats);
         return card;
+    }
+
+    function updateCardStrip(card, ac) {
+        var d = (ac.direction || "").toLowerCase();
+        card.className = "cl-strip " + dirCls(d);
+
+        var fl = card.querySelector(".cl-strip__flight");
+        if (fl) fl.textContent = ac.flight_display || ac.callsign || "???";
+
+        var al = card.querySelector(".cl-strip__airline");
+        if (al) al.textContent = shortAirline(ac.airline);
+
+        var tc = ac.aircraft_type || "";
+        var codeParts = tc.split(" ");
+        var typeCode = codeParts.length > 1 ? codeParts[codeParts.length - 1] : tc;
+        var tp = card.querySelector(".cl-strip__type");
+        if (tp) tp.textContent = typeCode;
+
+        var stats = card.querySelector(".cl-strip__stats");
+        if (stats) stats.innerHTML = '<span class="cl-strip-stat__val"><span class="cl-strip-stat__icon">↕</span>' + fmt(ac.altitude_ft) + ' <span class="cl-strip-stat__unit">FT</span></span>'
+            + '<span class="cl-strip-stat__val"><span class="cl-strip-stat__icon">↔</span>' + fmt(ac.distance_ft) + ' <span class="cl-strip-stat__unit">FT</span></span>';
     }
 
     function fillFlapsStatic(container, text, sz) {
@@ -583,6 +630,8 @@
             }
             blip.style.left = x + "px";
             blip.style.top = y + "px";
+            var hdg = ac.heading || 0;
+            blip.querySelector(".md-blip__dot").style.transform = "translate(-50%,-50%) rotate(" + hdg + "deg)";
             blip.querySelector(".md-blip__label").textContent = ac.flight_display || ac.callsign || ac.icao24;
         }
 
@@ -601,35 +650,57 @@
             container.innerHTML = '<div class="md-list__empty">No aircraft detected</div>';
             return;
         }
-        var frag = document.createDocumentFragment();
-        for (var i = 0; i < list.length && i < 10; i++) {
+
+        var maxItems = 10;
+        var existing = container.querySelectorAll(".md-list-item");
+        var showCount = Math.min(list.length, maxItems);
+
+        for (var i = 0; i < showCount; i++) {
             var ac = list[i];
-            var item = document.createElement("div"); item.className = "md-list-item";
-
-            var left = document.createElement("div"); left.className = "md-li__left";
-            var fl = document.createElement("span"); fl.className = "md-li__flight";
-            fl.textContent = ac.flight_display || ac.callsign || ac.icao24;
-            left.appendChild(fl);
-
-            var al = document.createElement("span"); al.className = "md-li__airline";
-            al.textContent = shortAirline(ac.airline);
-
-            var tc = ac.aircraft_type || "";
-            var codeParts = tc.split(" ");
-            var typeCode = codeParts.length > 1 ? codeParts[codeParts.length - 1] : tc;
-            var tp = document.createElement("span"); tp.className = "md-li__type";
-            tp.textContent = typeCode;
-
-            var stats = document.createElement("div"); stats.className = "md-li__stats";
-            stats.innerHTML = '<span class="md-li__stat"><span class="md-li__icon">↕</span>' + fmt(ac.altitude_ft) + ' <span class="md-li__unit">ft</span></span>'
-                + '<span class="md-li__stat"><span class="md-li__icon">↔</span>' + fmt(ac.distance_ft) + ' <span class="md-li__unit">ft</span></span>';
-
-            item.appendChild(left); item.appendChild(al);
-            item.appendChild(tp); item.appendChild(stats);
-            frag.appendChild(item);
+            if (i < existing.length) {
+                // Update in-place
+                var item = existing[i];
+                var fl = item.querySelector(".md-li__flight");
+                if (fl) fl.textContent = ac.flight_display || ac.callsign || ac.icao24;
+                var al = item.querySelector(".md-li__airline");
+                if (al) al.textContent = shortAirline(ac.airline);
+                var tc = ac.aircraft_type || "";
+                var codeParts = tc.split(" ");
+                var typeCode = codeParts.length > 1 ? codeParts[codeParts.length - 1] : tc;
+                var tp = item.querySelector(".md-li__type");
+                if (tp) tp.textContent = typeCode;
+                var stats = item.querySelector(".md-li__stats");
+                if (stats) stats.innerHTML = '<span class="md-li__stat"><span class="md-li__icon">↕</span>' + fmt(ac.altitude_ft) + ' <span class="md-li__unit">ft</span></span>'
+                    + '<span class="md-li__stat"><span class="md-li__icon">↔</span>' + fmt(ac.distance_ft) + ' <span class="md-li__unit">ft</span></span>';
+            } else {
+                // Build new item
+                var item = document.createElement("div"); item.className = "md-list-item";
+                var left = document.createElement("div"); left.className = "md-li__left";
+                var fl = document.createElement("span"); fl.className = "md-li__flight";
+                fl.textContent = ac.flight_display || ac.callsign || ac.icao24;
+                left.appendChild(fl);
+                var al = document.createElement("span"); al.className = "md-li__airline";
+                al.textContent = shortAirline(ac.airline);
+                var tc = ac.aircraft_type || "";
+                var codeParts = tc.split(" ");
+                var typeCode = codeParts.length > 1 ? codeParts[codeParts.length - 1] : tc;
+                var tp = document.createElement("span"); tp.className = "md-li__type";
+                tp.textContent = typeCode;
+                var stats = document.createElement("div"); stats.className = "md-li__stats";
+                stats.innerHTML = '<span class="md-li__stat"><span class="md-li__icon">↕</span>' + fmt(ac.altitude_ft) + ' <span class="md-li__unit">ft</span></span>'
+                    + '<span class="md-li__stat"><span class="md-li__icon">↔</span>' + fmt(ac.distance_ft) + ' <span class="md-li__unit">ft</span></span>';
+                item.appendChild(left); item.appendChild(al);
+                item.appendChild(tp); item.appendChild(stats);
+                container.appendChild(item);
+            }
         }
-        container.innerHTML = "";
-        container.appendChild(frag);
+        // Remove excess items
+        for (var j = existing.length - 1; j >= showCount; j--) {
+            existing[j].remove();
+        }
+        // Remove empty-state if present
+        var empty = container.querySelector(".md-list__empty");
+        if (empty) empty.remove();
     }
 
     // ── Update Router ─────────────────────────────
@@ -745,5 +816,32 @@
     // ── Init ──────────────────────────────────────
     btnTheme.textContent = theme.toUpperCase();
     showScreen(theme + "-multi");
+
+    // Load config and size near-zone indicators
+    fetch("/api/config").then(function(r) { return r.json(); }).then(function(cfg) {
+        NEAR_RADIUS_FT = cfg.radius_limit_ft || 3000;
+        // Scale scope to show all aircraft — use radar_radius or keep default
+        RADAR_MAX_FT = cfg.radar_radius_ft || 60000;
+        sizeNearZone();
+    });
+
+    function sizeNearZone() {
+        var ratio = Math.min(NEAR_RADIUS_FT / RADAR_MAX_FT, 1);
+        var zones = [
+            { radar: document.getElementById("cl-radar"), zone: document.getElementById("cl-near-zone") },
+            { radar: document.getElementById("md-radar"), zone: document.getElementById("md-near-zone") },
+        ];
+        for (var i = 0; i < zones.length; i++) {
+            var z = zones[i];
+            if (!z.radar || !z.zone) continue;
+            var rect = z.radar.getBoundingClientRect();
+            var scopeR = (Math.min(rect.width, rect.height) / 2) - 20;
+            var dia = Math.max(Math.round(scopeR * ratio * 2), 30);
+            z.zone.style.width = dia + "px";
+            z.zone.style.height = dia + "px";
+        }
+    }
+    window.addEventListener("resize", sizeNearZone);
+
     console.log("FlightView multi-theme display loaded");
 })();

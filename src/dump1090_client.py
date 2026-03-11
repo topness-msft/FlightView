@@ -22,7 +22,12 @@ class Dump1090Client:
 
     def __init__(self, base_url: str = "http://localhost:8080"):
         self.base_url = base_url.rstrip("/")
-        self._aircraft_url = f"{self.base_url}/data/aircraft.json"
+        # readsb ≥3.x uses /?all on --net-api-port; legacy dump1090 uses /data/aircraft.json
+        self._aircraft_urls = [
+            f"{self.base_url}/?all",
+            f"{self.base_url}/data/aircraft.json",
+        ]
+        self._aircraft_url: str | None = None
         self._last_success: float | None = None
         self._consecutive_failures: int = 0
 
@@ -37,21 +42,7 @@ class Dump1090Client:
         Raises Dump1090Error when the decoder is unreachable so the
         caller can surface the problem instead of silently returning [].
         """
-        try:
-            resp = requests.get(self._aircraft_url, timeout=5)
-            resp.raise_for_status()
-        except requests.ConnectionError as exc:
-            self._record_failure()
-            raise Dump1090Error(
-                f"Cannot connect to dump1090 at {self.base_url} — "
-                "is the decoder running?"
-            ) from exc
-        except requests.RequestException as exc:
-            self._record_failure()
-            raise Dump1090Error(
-                f"dump1090 request failed: {exc}"
-            ) from exc
-
+        resp = self._fetch_json()
         try:
             data = resp.json()
         except ValueError as exc:
@@ -80,14 +71,13 @@ class Dump1090Client:
         'last_success' (float timestamp or None).
         """
         try:
-            resp = requests.get(self._aircraft_url, timeout=3)
-            resp.raise_for_status()
+            self._fetch_json()
             return {
                 "ok": True,
                 "message": "dump1090 reachable",
                 "last_success": time.time(),
             }
-        except requests.RequestException as exc:
+        except Dump1090Error as exc:
             return {
                 "ok": False,
                 "message": str(exc),
@@ -103,6 +93,34 @@ class Dump1090Client:
         return self._consecutive_failures
 
     # -- Internal ------------------------------------------------------------
+
+    def _fetch_json(self) -> requests.Response:
+        """Try known endpoint URLs, caching the one that works."""
+        urls = [self._aircraft_url] if self._aircraft_url else self._aircraft_urls
+        last_exc: Exception | None = None
+
+        for url in urls:
+            try:
+                resp = requests.get(url, timeout=5)
+                if resp.status_code == 200:
+                    self._aircraft_url = url
+                    return resp
+            except requests.ConnectionError as exc:
+                last_exc = exc
+                continue
+            except requests.RequestException as exc:
+                last_exc = exc
+                continue
+
+        self._record_failure()
+        if isinstance(last_exc, requests.ConnectionError):
+            raise Dump1090Error(
+                f"Cannot connect to dump1090 at {self.base_url} — "
+                "is the decoder running?"
+            ) from last_exc
+        raise Dump1090Error(
+            f"dump1090 request failed: {last_exc}"
+        ) from last_exc
 
     def _record_success(self) -> None:
         self._last_success = time.time()
