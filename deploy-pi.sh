@@ -55,7 +55,7 @@ if $INSTALL_RTLSDR; then
         sudo apt-get install -y -qq \
             rtl-sdr librtlsdr-dev librtlsdr0 \
             build-essential debhelper pkg-config \
-            libncurses-dev zlib1g-dev
+            libncurses-dev zlib1g-dev libzstd-dev help2man
 
         # Blacklist the DVB-T kernel driver so it doesn't grab the dongle
         if ! grep -q "blacklist dvb_usb_rtl28xxu" /etc/modprobe.d/blacklist-rtlsdr.conf 2>/dev/null; then
