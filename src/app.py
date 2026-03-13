@@ -168,6 +168,16 @@ def index():
     return send_from_directory(app.static_folder, "index.html")
 
 
+@app.after_request
+def add_no_cache_headers(response):
+    """Prevent browser caching of static assets during development."""
+    if response.content_type and ("javascript" in response.content_type or "text/css" in response.content_type or "text/html" in response.content_type):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
+
 @socketio.on("connect")
 def handle_connect():
     """Handle new WebSocket client connections."""
