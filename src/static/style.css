@@ -808,6 +808,73 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 .cfg-btn--save { background:var(--md-blue); color:#fff; }
 .cfg-btn--cancel { background:var(--md-surface); color:var(--md-dim); border:1px solid var(--md-border); }
 
+/* Config tabs */
+.cfg-tabs { display:flex; gap:0; }
+.cfg-tab {
+    font-family:var(--mono); font-size:0.6rem; font-weight:600;
+    letter-spacing:1.5px; text-transform:uppercase;
+    padding:6px 16px; border:none; cursor:pointer;
+    background:transparent; color:var(--md-muted);
+    border-bottom:2px solid transparent;
+    transition:all 0.2s;
+}
+.cfg-tab:hover { color:var(--md-text); }
+.cfg-tab.active { color:var(--md-blue); border-bottom-color:var(--md-blue); }
+
+.cfg-tab-content { display:none; flex-direction:column; flex:1; overflow:hidden; }
+.cfg-tab-content.active { display:flex; }
+
+/* Receiver status panel */
+.rx-status {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 0; margin-bottom:8px;
+    border-bottom:1px solid var(--md-border);
+}
+.rx-status__row { display:flex; align-items:center; gap:8px; }
+.rx-status__indicator {
+    width:10px; height:10px; border-radius:50%;
+    background:var(--md-muted);
+    flex-shrink:0;
+}
+.rx-status__indicator.ok { background:#22c55e; box-shadow:0 0 6px #22c55e88; }
+.rx-status__indicator.error { background:#ef4444; box-shadow:0 0 6px #ef444488; }
+.rx-status__label {
+    font-family:var(--mono); font-size:0.75rem; color:var(--md-text);
+}
+.rx-status__count {
+    font-family:var(--mono); font-size:0.75rem; color:var(--md-muted);
+}
+.rx-status__source {
+    font-family:var(--mono); font-size:0.55rem; color:var(--md-dim);
+    letter-spacing:1px; text-transform:uppercase;
+}
+
+/* Receiver aircraft table */
+.rx-table-wrap {
+    flex:1; overflow-y:auto; margin-bottom:8px;
+}
+.rx-table {
+    width:100%; border-collapse:collapse;
+    font-family:var(--mono); font-size:0.65rem;
+}
+.rx-table thead th {
+    position:sticky; top:0;
+    background:var(--md-bg); color:var(--md-muted);
+    font-size:0.5rem; font-weight:600; letter-spacing:1.5px;
+    text-align:right; padding:4px 8px;
+    border-bottom:1px solid var(--md-border);
+}
+.rx-table thead th:first-child,
+.rx-table thead th:nth-child(2) { text-align:left; }
+.rx-table tbody td {
+    padding:5px 8px; text-align:right;
+    color:var(--md-text); border-bottom:1px solid var(--md-border);
+    white-space:nowrap;
+}
+.rx-table tbody td:first-child { text-align:left; color:var(--md-dim); }
+.rx-table tbody td:nth-child(2) { text-align:left; color:var(--md-blue); font-weight:600; }
+.rx-table tbody tr:hover { background:var(--md-surface); }
+
 /* 12. SHARED ANIMATIONS
    ================================================================ */
 

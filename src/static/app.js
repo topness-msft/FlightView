@@ -719,6 +719,63 @@
     }
 
     // ── Config Screen ─────────────────────────────
+    var cfgTabs = document.querySelectorAll(".cfg-tab");
+    var cfgTabContents = document.querySelectorAll(".cfg-tab-content");
+    var rxTbody = document.getElementById("rx-tbody");
+    var rxIndicator = document.getElementById("rx-indicator");
+    var rxLabel = document.getElementById("rx-label");
+    var rxCount = document.getElementById("rx-count");
+    var rxSource = document.getElementById("rx-source");
+    var rxRefreshTimer = null;
+
+    function switchCfgTab(tabName) {
+        cfgTabs.forEach(function (t) {
+            t.classList.toggle("active", t.dataset.tab === tabName);
+        });
+        cfgTabContents.forEach(function (c) {
+            c.classList.toggle("active", c.id === "tab-content-" + tabName);
+        });
+        if (tabName === "receiver") { fetchReceiverStatus(); startRxRefresh(); }
+        else { stopRxRefresh(); }
+    }
+
+    cfgTabs.forEach(function (t) {
+        t.addEventListener("click", function () { switchCfgTab(t.dataset.tab); });
+    });
+
+    function fetchReceiverStatus() {
+        fetch("/api/receiver").then(function (r) { return r.json(); }).then(function (data) {
+            var ok = data.health && data.health.status === "ok";
+            rxIndicator.className = "rx-status__indicator " + (ok ? "ok" : "error");
+            rxLabel.textContent = ok ? "Receiver online" : (data.health.message || "Receiver offline");
+            rxCount.textContent = data.total + " aircraft";
+            rxSource.textContent = (data.data_source || "").toUpperCase() + "  ·  " + (data.dump1090_url || "");
+
+            rxTbody.innerHTML = "";
+            (data.aircraft || []).forEach(function (ac) {
+                var tr = document.createElement("tr");
+                tr.innerHTML =
+                    "<td>" + (ac.icao24 || "—") + "</td>" +
+                    "<td>" + (ac.callsign || "—") + "</td>" +
+                    "<td>" + Math.round(ac.altitude_ft || 0).toLocaleString() + "</td>" +
+                    "<td>" + Math.round(ac.velocity_kts || 0) + "</td>" +
+                    "<td>" + Math.round(ac.heading || 0) + "°</td>" +
+                    "<td>" + (ac.latitude ? ac.latitude.toFixed(4) : "—") + "</td>" +
+                    "<td>" + (ac.longitude ? ac.longitude.toFixed(4) : "—") + "</td>" +
+                    "<td>" + Math.round(ac.vertical_rate_fpm || 0) + "</td>";
+                rxTbody.appendChild(tr);
+            });
+        }).catch(function () {
+            rxIndicator.className = "rx-status__indicator error";
+            rxLabel.textContent = "Failed to fetch";
+            rxCount.textContent = "";
+            rxTbody.innerHTML = "";
+        });
+    }
+
+    function startRxRefresh() { stopRxRefresh(); rxRefreshTimer = setInterval(fetchReceiverStatus, 3000); }
+    function stopRxRefresh() { if (rxRefreshTimer) { clearInterval(rxRefreshTimer); rxRefreshTimer = null; } }
+
     function openConfig() {
         fetch("/api/config").then(function (r) { return r.json(); }).then(function (cfg) {
             CFG.lat.value = cfg.home_lat;
@@ -731,11 +788,13 @@
             CFG.apikey.value = cfg.adsbx_api_key || "";
             CFG.datasource.value = cfg.data_source || "rtlsdr";
             CFG.dump1090Url.value = cfg.dump1090_url || "http://localhost:8080";
+            switchCfgTab("settings");
             showScreen("config");
         });
     }
 
     function closeConfig() {
+        stopRxRefresh();
         prevScreen = null;
         resolveScreen();
     }
@@ -789,6 +848,8 @@
     btnCfgClose.addEventListener("click", closeConfig);
     btnCfgSave.addEventListener("click", saveConfig);
     btnCfgCancel.addEventListener("click", closeConfig);
+    document.getElementById("btn-rx-refresh").addEventListener("click", fetchReceiverStatus);
+    document.getElementById("btn-rx-close").addEventListener("click", closeConfig);
 
     // ── Socket.IO ─────────────────────────────────
     var connEls = [

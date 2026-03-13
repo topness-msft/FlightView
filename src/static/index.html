@@ -174,9 +174,15 @@
     <!-- ========== CONFIG SCREEN ========== -->
     <div class="screen" id="screen-config">
         <header class="cfg-hdr">
-            <span class="cfg-hdr__title">Settings</span>
+            <div class="cfg-tabs">
+                <button class="cfg-tab active" id="tab-settings" data-tab="settings">Settings</button>
+                <button class="cfg-tab" id="tab-receiver" data-tab="receiver">Receiver</button>
+            </div>
             <button class="cfg-hdr__close" id="btn-cfg-close">✕</button>
         </header>
+
+        <!-- Settings tab -->
+        <div class="cfg-tab-content active" id="tab-content-settings">
         <div class="cfg-body">
             <div class="cfg-group">
                 <span class="cfg-group__title">LOCATION</span>
@@ -211,9 +217,43 @@
             <button class="cfg-btn cfg-btn--save" id="btn-cfg-save">Save</button>
             <button class="cfg-btn cfg-btn--cancel" id="btn-cfg-cancel">Cancel</button>
         </div>
+        </div>
+
+        <!-- Receiver tab -->
+        <div class="cfg-tab-content" id="tab-content-receiver">
+            <div class="rx-status" id="rx-status">
+                <div class="rx-status__row">
+                    <span class="rx-status__indicator" id="rx-indicator"></span>
+                    <span class="rx-status__label" id="rx-label">Checking...</span>
+                    <span class="rx-status__count" id="rx-count"></span>
+                </div>
+                <span class="rx-status__source" id="rx-source"></span>
+            </div>
+            <div class="rx-table-wrap">
+                <table class="rx-table">
+                    <thead>
+                        <tr>
+                            <th>ICAO</th>
+                            <th>Callsign</th>
+                            <th>Alt (ft)</th>
+                            <th>Speed (kt)</th>
+                            <th>Hdg</th>
+                            <th>Lat</th>
+                            <th>Lon</th>
+                            <th>V/S</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rx-tbody"></tbody>
+                </table>
+            </div>
+            <div class="cfg-actions">
+                <button class="cfg-btn cfg-btn--save" id="btn-rx-refresh">Refresh</button>
+                <button class="cfg-btn cfg-btn--cancel" id="btn-rx-close">Close</button>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="/static/app.js?v=34"></script>
+    <script src="/static/app.js?v=35"></script>
 </body>
 </html>

@@ -249,6 +249,38 @@ def set_config():
     return jsonify({"ok": True})
 
 
+@app.route("/api/receiver", methods=["GET"])
+def get_receiver_status():
+    """Return raw unfiltered aircraft data from the receiver for diagnostics."""
+    src = config.DATA_SOURCE
+    result = {
+        "data_source": src,
+        "dump1090_url": config.DUMP1090_URL,
+        "health": dict(_health),
+        "aircraft": [],
+        "total": 0,
+    }
+
+    try:
+        if src == "rtlsdr":
+            raw = dump1090.fetch_aircraft()
+        elif src == "mock":
+            raw = mock_source.fetch_aircraft()
+        else:
+            raw = opensky.fetch_aircraft()
+
+        # Sort by altitude descending for readability
+        raw.sort(key=lambda a: a.get("altitude_ft", 0), reverse=True)
+        result["aircraft"] = raw
+        result["total"] = len(raw)
+        result["health"]["status"] = "ok"
+    except Exception as exc:
+        result["health"]["status"] = "error"
+        result["health"]["message"] = str(exc)
+
+    return jsonify(result)
+
+
 def _save_env(updates: dict) -> None:
     """Persist config changes to the .env file."""
     key_map = {
