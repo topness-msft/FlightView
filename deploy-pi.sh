@@ -75,8 +75,8 @@ BLACKLIST
         git clone --depth 1 https://github.com/wiedehopf/readsb.git "$READSB_BUILD"
         cd "$READSB_BUILD"
 
-        echo "→ Building readsb (this takes a few minutes on a Pi)..."
-        dpkg-buildpackage -b -Jauto --no-sign 2>&1 | tail -5
+        echo "→ Building readsb with RTL-SDR support (this takes a few minutes on a Pi)..."
+        DEB_BUILD_PROFILES=rtlsdr dpkg-buildpackage -b -Jauto --no-sign 2>&1 | tail -5
         cd /tmp
 
         echo "→ Installing readsb package..."
