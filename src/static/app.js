@@ -758,7 +758,7 @@
                     "<td>" + (ac.icao24 || "—") + "</td>" +
                     "<td>" + (ac.callsign || "—") + "</td>" +
                     "<td>" + Math.round(ac.altitude_ft || 0).toLocaleString() + "</td>" +
-                    "<td>" + (ac.distance_nm != null ? ac.distance_nm : "—") + "</td>" +
+                    "<td>" + (ac.distance_ft != null ? (ac.distance_ft >= 1000 ? (ac.distance_ft / 1000).toFixed(1) + "K" : ac.distance_ft) : "—") + "</td>" +
                     "<td>" + Math.round(ac.velocity_kts || 0) + "</td>" +
                     "<td>" + Math.round(ac.heading || 0) + "°</td>" +
                     "<td>" + (ac.latitude ? ac.latitude.toFixed(4) : "—") + "</td>" +
