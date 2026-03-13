@@ -91,7 +91,7 @@ BLACKLIST
         sudo tee /etc/default/readsb > /dev/null <<'READSB_CONF'
 RECEIVER_OPTIONS="--device-type rtlsdr --gain autogain"
 DECODER_OPTIONS=""
-NET_OPTIONS="--net --net-api-port 8080"
+NET_OPTIONS="--net --net-api-port 8080 --net-beast-reduce-out-port 30005"
 READSB_CONF
 
         sudo systemctl enable readsb
