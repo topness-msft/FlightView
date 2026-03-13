@@ -789,7 +789,7 @@
             CFG.apikey.value = cfg.adsbx_api_key || "";
             CFG.datasource.value = cfg.data_source || "rtlsdr";
             CFG.dump1090Url.value = cfg.dump1090_url || "http://localhost:8080";
-            switchCfgTab("settings");
+            switchCfgTab("receiver");
             showScreen("config");
         });
     }

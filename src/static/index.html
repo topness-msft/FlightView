@@ -175,14 +175,14 @@
     <div class="screen" id="screen-config">
         <header class="cfg-hdr">
             <div class="cfg-tabs">
-                <button class="cfg-tab active" id="tab-settings" data-tab="settings">Settings</button>
-                <button class="cfg-tab" id="tab-receiver" data-tab="receiver">Receiver</button>
+                <button class="cfg-tab" id="tab-settings" data-tab="settings">Settings</button>
+                <button class="cfg-tab active" id="tab-receiver" data-tab="receiver">Receiver</button>
             </div>
             <button class="cfg-hdr__close" id="btn-cfg-close">✕</button>
         </header>
 
         <!-- Settings tab -->
-        <div class="cfg-tab-content active" id="tab-content-settings">
+        <div class="cfg-tab-content" id="tab-content-settings">
         <div class="cfg-body">
             <div class="cfg-group">
                 <span class="cfg-group__title">LOCATION</span>
@@ -220,7 +220,7 @@
         </div>
 
         <!-- Receiver tab -->
-        <div class="cfg-tab-content" id="tab-content-receiver">
+        <div class="cfg-tab-content active" id="tab-content-receiver">
             <div class="rx-status" id="rx-status">
                 <div class="rx-status__row">
                     <span class="rx-status__indicator" id="rx-indicator"></span>
@@ -255,6 +255,6 @@
     </div>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="/static/app.js?v=37"></script>
+    <script src="/static/app.js?v=38"></script>
 </body>
 </html>
