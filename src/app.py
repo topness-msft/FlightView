@@ -16,7 +16,7 @@ from flask_socketio import SocketIO, emit
 from config import config
 from opensky_client import OpenSkyClient
 from dump1090_client import Dump1090Client, Dump1090Error
-from geo_filter import filter_aircraft
+from geo_filter import filter_aircraft, haversine_distance_ft
 from callsign_decoder import decode_callsign
 from icao_db import icao_db
 from adsbx_client import ADSBXClient
@@ -271,6 +271,15 @@ def get_receiver_status():
 
         # Sort by altitude descending for readability
         raw.sort(key=lambda a: a.get("altitude_ft", 0), reverse=True)
+        # Add distance from home
+        for ac in raw:
+            lat = ac.get("latitude")
+            lon = ac.get("longitude")
+            if lat is not None and lon is not None:
+                ac["distance_ft"] = round(haversine_distance_ft(
+                    config.HOME_LAT, config.HOME_LON, lat, lon
+                ))
+                ac["distance_nm"] = round(ac["distance_ft"] / 6076.12, 1)
         result["aircraft"] = raw
         result["total"] = len(raw)
         result["health"]["status"] = "ok"
