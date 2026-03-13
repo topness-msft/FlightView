@@ -86,16 +86,12 @@ BLACKLIST
         cd "$SCRIPT_DIR"
 
         # Configure readsb: RTL-SDR input, network API on port 8080
+        # The systemd unit uses $RECEIVER_OPTIONS $DECODER_OPTIONS $NET_OPTIONS
         echo "→ Configuring readsb..."
-        sudo tee /etc/default/readsb > /dev/null <<READSB_CONF
-READSB_DEVICE_TYPE=rtlsdr
-READSB_NET_ENABLE=true
-READSB_NET_API_PORT=8080
-READSB_GAIN=autogain
-READSB_LAT=\${HOME_LAT:-0}
-READSB_LON=\${HOME_LON:-0}
-READSB_MAX_RANGE=360
-READSB_EXTRA_ARGS="--write-json /run/readsb --write-json-every 1"
+        sudo tee /etc/default/readsb > /dev/null <<'READSB_CONF'
+RECEIVER_OPTIONS="--device-type rtlsdr --gain autogain"
+DECODER_OPTIONS=""
+NET_OPTIONS="--net --net-api-port 8080"
 READSB_CONF
 
         sudo systemctl enable readsb
