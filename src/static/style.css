@@ -323,13 +323,14 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 .cl-radar__ring {
     position:absolute; top:50%; left:50%; border-radius:50%;
     border:1px solid rgba(240,200,80,0.08); transform:translate(-50%,-50%);
+    pointer-events:none;
 }
 .cl-radar__ring--1 { width:33.3%; height:33.3%; }
 .cl-radar__ring--2 { width:66.6%; height:66.6%; }
 .cl-radar__ring--3 { width:100%; height:100%; }
 
 .cl-radar__cross-h, .cl-radar__cross-v {
-    position:absolute; background:rgba(240,200,80,0.05);
+    position:absolute; background:rgba(240,200,80,0.05); pointer-events:none;
 }
 .cl-radar__cross-h { top:50%; left:0; right:0; height:1px; }
 .cl-radar__cross-v { left:50%; top:0; bottom:0; width:1px; }
@@ -337,6 +338,7 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 .cl-radar__lbl {
     position:absolute; font-family:var(--mono); font-size:0.5rem;
     font-weight:600; color:rgba(240,200,80,0.25); letter-spacing:1px;
+    pointer-events:none;
 }
 .cl-radar__n { top:2px; left:50%; transform:translateX(-50%); }
 .cl-radar__s { bottom:2px; left:50%; transform:translateX(-50%); }
@@ -348,11 +350,13 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     transform-origin:0% 50%;
     background:linear-gradient(90deg,rgba(240,200,80,0.35),transparent);
     animation:sweep 4s linear infinite; will-change:transform;
+    pointer-events:none;
 }
 .cl-radar__home {
     position:absolute; top:50%; left:50%; width:6px; height:6px;
     border-radius:50%; background:var(--cl-amber); transform:translate(-50%,-50%);
     box-shadow:0 0 10px var(--cl-amber-glow);
+    pointer-events:none;
 }
 .cl-radar__near-zone {
     position:absolute; top:50%; left:50%; border-radius:50%;
@@ -365,7 +369,11 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 .cl-blip {
     position:absolute; pointer-events:auto; cursor:pointer;
     transition: left 0.8s ease, top 0.8s ease;
-    padding:10px; margin:-10px;
+    z-index:10;
+}
+.cl-blip::before {
+    content:''; position:absolute;
+    top:-15px; left:-15px; right:-15px; bottom:-15px;
 }
 .cl-blip:active .cl-blip__dot {
     filter:drop-shadow(0 0 10px var(--cl-amber-glow)) brightness(1.3);
@@ -617,13 +625,14 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 .md-radar__ring {
     position:absolute; top:50%; left:50%; border-radius:50%;
     border:1px solid rgba(59,130,246,0.08); transform:translate(-50%,-50%);
+    pointer-events:none;
 }
 .md-radar__ring--1 { width:33.3%; height:33.3%; }
 .md-radar__ring--2 { width:66.6%; height:66.6%; }
 .md-radar__ring--3 { width:100%; height:100%; }
 
 .md-radar__cross-h, .md-radar__cross-v {
-    position:absolute; background:rgba(59,130,246,0.05);
+    position:absolute; background:rgba(59,130,246,0.05); pointer-events:none;
 }
 .md-radar__cross-h { top:50%; left:0; right:0; height:1px; }
 .md-radar__cross-v { left:50%; top:0; bottom:0; width:1px; }
@@ -631,6 +640,7 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 .md-radar__lbl {
     position:absolute; font-family:var(--mono); font-size:0.5rem;
     font-weight:600; color:rgba(148,163,184,0.35); letter-spacing:1px;
+    pointer-events:none;
 }
 .md-radar__n { top:2px; left:50%; transform:translateX(-50%); }
 .md-radar__s { bottom:2px; left:50%; transform:translateX(-50%); }
@@ -642,11 +652,13 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     transform-origin:0% 50%;
     background:linear-gradient(90deg,rgba(59,130,246,0.35),transparent);
     animation:sweep 6s linear infinite; will-change:transform;
+    pointer-events:none;
 }
 .md-radar__home {
     position:absolute; top:50%; left:50%; width:6px; height:6px;
     border-radius:50%; background:var(--md-blue); transform:translate(-50%,-50%);
     box-shadow:0 0 10px var(--md-blue-glow);
+    pointer-events:none;
 }
 .md-radar__near-zone {
     position:absolute; top:50%; left:50%; border-radius:50%;
@@ -659,7 +671,11 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 .md-blip {
     position:absolute; pointer-events:auto; cursor:pointer;
     transition: left 0.8s ease, top 0.8s ease;
-    padding:10px; margin:-10px;
+    z-index:10;
+}
+.md-blip::before {
+    content:''; position:absolute;
+    top:-15px; left:-15px; right:-15px; bottom:-15px;
 }
 .md-blip:active .md-blip__dot {
     filter:drop-shadow(0 0 10px var(--md-blue-glow)) brightness(1.3);
