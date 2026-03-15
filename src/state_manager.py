@@ -115,6 +115,8 @@ class AircraftStateManager:
                 "bearing": ac.get("bearing", 0),
                 "compass": ac.get("compass", ""),
                 "direction": ac.get("direction", ""),
+                "vertical_rate_fpm": ac.get("vertical_rate_fpm"),
+                "callsign_raw": ac.get("callsign_raw", ""),
                 "route_origin": ac.get("route_origin", ""),
                 "route_destination": ac.get("route_destination", ""),
             }

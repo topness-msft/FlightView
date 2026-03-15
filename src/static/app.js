@@ -13,6 +13,9 @@
     var currentFlightId = null;
     var prevScreen = null;
     var latestState = null;
+    var pinnedIcao = null;
+    var pinnedTimer = null;
+    var PINNED_DURATION_MS = 10000;
 
     // ── DOM refs ──────────────────────────────────
     var screens = {
@@ -113,8 +116,40 @@
         if (prevScreen === "config") return;
         var s = latestState;
         var hasDisplay = s && s.display;
-        currentView = hasDisplay ? "single" : "multi";
+        var hasPinned = pinnedIcao && s && findAircraft(s, pinnedIcao);
+        currentView = (hasDisplay || hasPinned) ? "single" : "multi";
         showScreen(theme + "-" + currentView);
+    }
+
+    function findAircraft(state, icao) {
+        var list = state.aircraft_list || [];
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].icao24 === icao) return list[i];
+        }
+        return null;
+    }
+
+    function pinFlight(icao) {
+        clearPinTimer();
+        pinnedIcao = icao;
+        pinnedTimer = setTimeout(unpinFlight, PINNED_DURATION_MS);
+        if (latestState) {
+            resolveScreen();
+            updateAll(latestState);
+        }
+    }
+
+    function unpinFlight() {
+        clearPinTimer();
+        pinnedIcao = null;
+        if (latestState) {
+            resolveScreen();
+            updateAll(latestState);
+        }
+    }
+
+    function clearPinTimer() {
+        if (pinnedTimer) { clearTimeout(pinnedTimer); pinnedTimer = null; }
     }
 
     function switchTheme() {
@@ -484,6 +519,11 @@
                 var dot = document.createElement("div"); dot.className = "cl-blip__dot";
                 var lbl = document.createElement("span"); lbl.className = "cl-blip__label";
                 blip.appendChild(dot); blip.appendChild(lbl);
+                blip.dataset.icao = id;
+                blip.addEventListener("click", function(e) {
+                    e.stopPropagation();
+                    pinFlight(this.dataset.icao);
+                });
                 radar.appendChild(blip);
                 classicBlips[id] = blip;
             }
@@ -625,6 +665,11 @@
                 var dot = document.createElement("div"); dot.className = "md-blip__dot";
                 var lbl = document.createElement("span"); lbl.className = "md-blip__label";
                 blip.appendChild(dot); blip.appendChild(lbl);
+                blip.dataset.icao = id;
+                blip.addEventListener("click", function(e) {
+                    e.stopPropagation();
+                    pinFlight(this.dataset.icao);
+                });
                 radar.appendChild(blip);
                 radarBlips[id] = blip;
             }
@@ -710,12 +755,24 @@
         var list = state.aircraft_list || [];
         var display = state.display;
 
+        // If a flight is pinned, use its data from the list for the detail view
+        if (pinnedIcao) {
+            var pinned = findAircraft(state, pinnedIcao);
+            if (pinned) {
+                display = pinned;
+            } else {
+                // Pinned aircraft left radar — unpin silently
+                clearPinTimer();
+                pinnedIcao = null;
+            }
+        }
+
         // Multi-plane views show total aircraft in radar zone
         updateClassicMulti(list, totalCount);
         updateModernMulti(list, totalCount);
-        // Single-plane views show near zone count
-        if (display) updateClassicSingle(display, nearCount);
-        if (display) updateModernSingle(display, nearCount);
+        // Single-plane views show near zone count (or "1 SELECTED" when pinned)
+        if (display) updateClassicSingle(display, pinnedIcao ? 1 : nearCount);
+        if (display) updateModernSingle(display, pinnedIcao ? 1 : nearCount);
     }
 
     // ── Config Screen ─────────────────────────────
@@ -851,6 +908,14 @@
     btnCfgCancel.addEventListener("click", closeConfig);
     document.getElementById("btn-rx-refresh").addEventListener("click", fetchReceiverStatus);
     document.getElementById("btn-rx-close").addEventListener("click", closeConfig);
+
+    // Tap single-plane screen to dismiss pinned flight
+    screens["classic-single"].addEventListener("click", function() {
+        if (pinnedIcao) unpinFlight();
+    });
+    screens["modern-single"].addEventListener("click", function() {
+        if (pinnedIcao) unpinFlight();
+    });
 
     // ── Socket.IO ─────────────────────────────────
     var connEls = [
