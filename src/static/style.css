@@ -319,6 +319,7 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 /* Classic radar scope — warm amber theme */
 .cl-radar {
     position:relative; flex-shrink:0; width:40%;
+    touch-action:manipulation;
 }
 .cl-radar__ring {
     position:absolute; top:50%; left:50%; border-radius:50%;
@@ -621,6 +622,7 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 .md-radar {
     position:relative; flex-shrink:0;
     width:40%; align-self:stretch;
+    touch-action:manipulation;
 }
 .md-radar__ring {
     position:absolute; top:50%; left:50%; border-radius:50%;

@@ -520,10 +520,6 @@
                 var lbl = document.createElement("span"); lbl.className = "cl-blip__label";
                 blip.appendChild(dot); blip.appendChild(lbl);
                 blip.dataset.icao = id;
-                blip.addEventListener("click", function(e) {
-                    e.stopPropagation();
-                    pinFlight(this.dataset.icao);
-                });
                 radar.appendChild(blip);
                 classicBlips[id] = blip;
             }
@@ -666,10 +662,6 @@
                 var lbl = document.createElement("span"); lbl.className = "md-blip__label";
                 blip.appendChild(dot); blip.appendChild(lbl);
                 blip.dataset.icao = id;
-                blip.addEventListener("click", function(e) {
-                    e.stopPropagation();
-                    pinFlight(this.dataset.icao);
-                });
                 radar.appendChild(blip);
                 radarBlips[id] = blip;
             }
@@ -910,12 +902,27 @@
     document.getElementById("btn-rx-close").addEventListener("click", closeConfig);
 
     // Tap single-plane screen to dismiss pinned flight
-    screens["classic-single"].addEventListener("click", function() {
+    screens["classic-single"].addEventListener("pointerdown", function() {
         if (pinnedIcao) unpinFlight();
     });
-    screens["modern-single"].addEventListener("click", function() {
+    screens["modern-single"].addEventListener("pointerdown", function() {
         if (pinnedIcao) unpinFlight();
     });
+
+    // Delegated tap handler on radar scopes for blip selection
+    function handleRadarTap(e) {
+        var el = e.target;
+        while (el && el !== this) {
+            if (el.dataset && el.dataset.icao) {
+                e.stopPropagation();
+                pinFlight(el.dataset.icao);
+                return;
+            }
+            el = el.parentElement;
+        }
+    }
+    CLM.radar.addEventListener("pointerdown", handleRadarTap);
+    MDM.radar.addEventListener("pointerdown", handleRadarTap);
 
     // ── Socket.IO ─────────────────────────────────
     var connEls = [
