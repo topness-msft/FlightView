@@ -189,6 +189,31 @@ Exec=unclutter -idle 3
 X-GNOME-Autostart-enabled=true
 EOF
 
+    # Suppress nm-applet Wi-Fi popups in kiosk mode
+    echo "→ Disabling nm-applet and notification daemon..."
+    cat > "$AUTOSTART_DIR/nm-applet.desktop" <<EOF
+[Desktop Entry]
+Hidden=true
+X-GNOME-Autostart-enabled=false
+EOF
+    cat > "$AUTOSTART_DIR/lxplug-network.desktop" <<EOF
+[Desktop Entry]
+Hidden=true
+X-GNOME-Autostart-enabled=false
+EOF
+    cat > "$AUTOSTART_DIR/xfce4-notifyd.desktop" <<EOF
+[Desktop Entry]
+Hidden=true
+X-GNOME-Autostart-enabled=false
+EOF
+    cat > "$AUTOSTART_DIR/notification-daemon.desktop" <<EOF
+[Desktop Entry]
+Hidden=true
+X-GNOME-Autostart-enabled=false
+EOF
+    # Kill nm-applet if currently running
+    pkill -f nm-applet 2>/dev/null || true
+
     # Disable screen blanking
     if ! grep -q "xserver-command" /etc/lightdm/lightdm.conf 2>/dev/null; then
         sudo mkdir -p /etc/lightdm
