@@ -896,17 +896,22 @@
         btn.textContent = "✓ Waiting for server…";
         var attempts = 0;
         var maxAttempts = 30;
+        var reloading = false;
         var poll = setInterval(function() {
+            if (reloading) return;
             attempts++;
+            btn.textContent = "✓ Waiting for server… (" + attempts + ")";
             fetch("/api/config", { method: "GET" })
                 .then(function(r) {
-                    if (r.ok) {
+                    if (r.ok && !reloading) {
+                        reloading = true;
                         clearInterval(poll);
                         location.reload();
                     }
                 })
                 .catch(function() {
-                    if (attempts >= maxAttempts) {
+                    if (attempts >= maxAttempts && !reloading) {
+                        reloading = true;
                         clearInterval(poll);
                         location.reload();
                     }
