@@ -422,17 +422,17 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 
 .cl-strip__left {
     display:flex; flex-direction:column; justify-self:start;
-    position:relative; z-index:1;
+    position:relative; z-index:1; min-width:0;
 }
 .cl-strip__flight {
     font-family:var(--mono); font-size:1.2rem; font-weight:700;
     color:var(--cl-amber); letter-spacing:1px;
-    white-space:nowrap;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .cl-strip__airline {
     font-size:1.2rem; font-weight:400; color:var(--cl-gray);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    position:relative; z-index:1;
+    position:relative; z-index:1; min-width:0;
 }
 .cl-strip__orig {
     font-family:var(--mono); font-size:1.2rem; font-weight:700;
@@ -452,6 +452,7 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     font-family:var(--mono); font-size:1.2rem; font-weight:400;
     color:var(--cl-gray); letter-spacing:1px;
     position:relative; z-index:1; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; min-width:0;
 }
 
 .cl-strip__stats {
