@@ -422,11 +422,11 @@
         CL.count.textContent = count + " NEARBY";
         updateFlaps(CL.airline, (a.airline || "UNKNOWN").toUpperCase(), "flaps--xl");
 
-        // Split-flap: flight code + type code
+        // Split-flap: flight code + type code (strip manufacturer prefix)
         var flightCode = a.flight_display || a.callsign_raw || "";
         var tc = a.aircraft_type || "";
         var codeParts = tc.split(" ");
-        var typeCode = codeParts.length > 1 ? codeParts[codeParts.length - 1] : tc;
+        var typeCode = codeParts.length > 1 ? codeParts.slice(1).join(" ") : tc;
         updateFlaps(CL.typeFlaps, (flightCode + "  " + typeCode).toUpperCase(), "flaps--xl");
 
         // Dot-matrix: route
@@ -553,7 +553,7 @@
 
         var tc = ac.aircraft_type || "";
         var codeParts = tc.split(" ");
-        var typeCode = codeParts.length > 1 ? codeParts[codeParts.length - 1] : tc;
+        var typeCode = codeParts.length > 1 ? codeParts.slice(1).join(" ") : tc;
         var tp = document.createElement("span"); tp.className = "cl-strip__type";
         tp.textContent = typeCode;
 
@@ -578,7 +578,7 @@
 
         var tc = ac.aircraft_type || "";
         var codeParts = tc.split(" ");
-        var typeCode = codeParts.length > 1 ? codeParts[codeParts.length - 1] : tc;
+        var typeCode = codeParts.length > 1 ? codeParts.slice(1).join(" ") : tc;
         var tp = card.querySelector(".cl-strip__type");
         if (tp) tp.textContent = typeCode;
 
@@ -703,7 +703,7 @@
                 if (al) al.textContent = shortAirline(ac.airline);
                 var tc = ac.aircraft_type || "";
                 var codeParts = tc.split(" ");
-                var typeCode = codeParts.length > 1 ? codeParts[codeParts.length - 1] : tc;
+                var typeCode = codeParts.length > 1 ? codeParts.slice(1).join(" ") : tc;
                 var tp = item.querySelector(".md-li__type");
                 if (tp) tp.textContent = typeCode;
                 var stats = item.querySelector(".md-li__stats");
@@ -720,7 +720,7 @@
                 al.textContent = shortAirline(ac.airline);
                 var tc = ac.aircraft_type || "";
                 var codeParts = tc.split(" ");
-                var typeCode = codeParts.length > 1 ? codeParts[codeParts.length - 1] : tc;
+                var typeCode = codeParts.length > 1 ? codeParts.slice(1).join(" ") : tc;
                 var tp = document.createElement("span"); tp.className = "md-li__type";
                 tp.textContent = typeCode;
                 var stats = document.createElement("div"); stats.className = "md-li__stats";
