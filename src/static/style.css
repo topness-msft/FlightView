@@ -833,6 +833,8 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 .cfg-btn:active { opacity:0.7; }
 .cfg-btn--save { background:var(--md-blue); color:#fff; }
 .cfg-btn--cancel { background:var(--md-surface); color:var(--md-dim); border:1px solid var(--md-border); }
+.cfg-btn--update { background:#2d6a4f; color:#fff; margin-left:auto; }
+.cfg-btn--update:disabled { opacity:0.6; cursor:wait; }
 
 /* Config tabs */
 .cfg-tabs { display:flex; gap:0; }

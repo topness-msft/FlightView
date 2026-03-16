@@ -869,6 +869,27 @@
         }).then(function () { closeConfig(); });
     }
 
+    function doUpdate() {
+        var btn = document.getElementById("btn-cfg-update");
+        btn.textContent = "Updating…";
+        btn.disabled = true;
+        fetch("/api/update", { method: "POST" })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.ok) {
+                    btn.textContent = "✓ Restarting…";
+                    setTimeout(function() { location.reload(); }, 3000);
+                } else {
+                    btn.textContent = "✗ " + (d.error || "Failed");
+                    setTimeout(function() { btn.textContent = "⟳ Update & Restart"; btn.disabled = false; }, 5000);
+                }
+            })
+            .catch(function() {
+                btn.textContent = "✗ Network error";
+                setTimeout(function() { btn.textContent = "⟳ Update & Restart"; btn.disabled = false; }, 5000);
+            });
+    }
+
     // ── Health Banner ─────────────────────────────
     function updateHealthBanner(health) {
         if (!health || health.status === "ok") {
@@ -898,6 +919,7 @@
     btnCfgClose.addEventListener("click", closeConfig);
     btnCfgSave.addEventListener("click", saveConfig);
     btnCfgCancel.addEventListener("click", closeConfig);
+    document.getElementById("btn-cfg-update").addEventListener("click", doUpdate);
     document.getElementById("btn-rx-refresh").addEventListener("click", fetchReceiverStatus);
     document.getElementById("btn-rx-close").addEventListener("click", closeConfig);
 

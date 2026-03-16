@@ -300,6 +300,28 @@ def get_receiver_status():
     return jsonify(result)
 
 
+@app.route("/api/update", methods=["POST"])
+def do_update():
+    """Git pull and restart the FlightView service."""
+    import subprocess
+    repo_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    try:
+        pull = subprocess.run(
+            ["git", "pull", "origin", "main"],
+            cwd=repo_dir, capture_output=True, text=True, timeout=30,
+        )
+        if pull.returncode != 0:
+            return jsonify({"ok": False, "error": pull.stderr.strip()}), 500
+
+        restart = subprocess.Popen(
+            ["sudo", "systemctl", "restart", "flightview"],
+            cwd=repo_dir,
+        )
+        return jsonify({"ok": True, "output": pull.stdout.strip()})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
 def _save_env(updates: dict) -> None:
     """Persist config changes to the .env file."""
     key_map = {
