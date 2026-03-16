@@ -919,6 +919,7 @@
     btnCfgClose.addEventListener("click", closeConfig);
     btnCfgSave.addEventListener("click", saveConfig);
     btnCfgCancel.addEventListener("click", closeConfig);
+    document.getElementById("btn-cfg-reload").addEventListener("click", function() { location.reload(); });
     document.getElementById("btn-cfg-update").addEventListener("click", doUpdate);
     document.getElementById("btn-rx-refresh").addEventListener("click", fetchReceiverStatus);
     document.getElementById("btn-rx-close").addEventListener("click", closeConfig);

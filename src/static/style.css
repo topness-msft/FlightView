@@ -134,7 +134,7 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 /* 4. SPLIT-FLAP CELLS (shared by classic)
    ================================================================ */
 
-.flaps { display:inline-flex; gap:2px; align-items:center; }
+.flaps { display:flex; gap:2px; align-items:center; max-width:100%; }
 
 .flap {
     display:inline-flex; align-items:center; justify-content:center;
@@ -166,8 +166,8 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 }
 
 /* Sizes — scale with viewport for responsive */
-.flaps--xl .flap { width:clamp(72px,12vw,96px); height:clamp(100px,16vw,136px); }
-.flaps--xl .flap__char { font-size:clamp(3.6rem,6vw,4.8rem); }
+.flaps--xl .flap { flex:1 1 0; min-width:0; height:clamp(50px,12vw,80px); max-width:96px; }
+.flaps--xl .flap__char { font-size:clamp(2.4rem,5vw,4rem); }
 .flaps--lg .flap { width:clamp(30px,4.5vw,40px); height:clamp(40px,6vw,54px); }
 .flaps--lg .flap__char { font-size:clamp(1.4rem,2.3vw,1.9rem); }
 .flaps--sm .flap { width:clamp(20px,2.8vw,26px); height:clamp(28px,4vw,36px); }
@@ -212,8 +212,8 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 .cl-card.fade-out { opacity:0; }
 
 .cl-card__row { display:flex; align-items:center; }
-.cl-card__row--airline { justify-content:center; margin-bottom:5px; }
-.cl-card__row--type { justify-content:center; margin-bottom:14px; }
+.cl-card__row--airline { justify-content:center; margin-bottom:5px; width:100%; padding:0 8px; box-sizing:border-box; }
+.cl-card__row--type { justify-content:center; margin-bottom:14px; width:100%; padding:0 8px; box-sizing:border-box; }
 
 /* LED Dot-Matrix Display */
 .cl-dotmatrix {
@@ -232,11 +232,11 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 .dm-char {
     display:grid; grid-template-columns:repeat(5, 1fr);
     grid-template-rows:repeat(7, 1fr);
-    gap:1px;
+    gap:2px;
 }
-.dm-gap { width:9px; }
+.dm-gap { width:6px; }
 .dm-dot {
-    width:9px; height:9px; border-radius:50%;
+    width:6px; height:6px; border-radius:50%;
     background:rgba(240,200,80,0.06);
 }
 .dm-dot.dm-on {
@@ -835,6 +835,7 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 .cfg-btn--cancel { background:var(--md-surface); color:var(--md-dim); border:1px solid var(--md-border); }
 .cfg-btn--update { background:#2d6a4f; color:#fff; margin-left:auto; }
 .cfg-btn--update:disabled { opacity:0.6; cursor:wait; }
+.cfg-btn--reload { background:#6b5b00; color:#fff; }
 
 /* Config tabs */
 .cfg-tabs { display:flex; gap:0; }
