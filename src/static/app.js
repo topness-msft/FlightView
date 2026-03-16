@@ -878,7 +878,8 @@
             .then(function(d) {
                 if (d.ok) {
                     btn.textContent = "✓ Restarting…";
-                    setTimeout(function() { location.reload(); }, 3000);
+                    // Wait for server to restart, then reload
+                    setTimeout(function() { waitForServer(); }, 30000);
                 } else {
                     btn.textContent = "✗ " + (d.error || "Failed");
                     setTimeout(function() { btn.textContent = "⟳ Update & Restart"; btn.disabled = false; }, 5000);
@@ -888,6 +889,29 @@
                 btn.textContent = "✗ Network error";
                 setTimeout(function() { btn.textContent = "⟳ Update & Restart"; btn.disabled = false; }, 5000);
             });
+    }
+
+    function waitForServer() {
+        var btn = document.getElementById("btn-cfg-update");
+        btn.textContent = "✓ Waiting for server…";
+        var attempts = 0;
+        var maxAttempts = 30;
+        var poll = setInterval(function() {
+            attempts++;
+            fetch("/api/config", { method: "GET" })
+                .then(function(r) {
+                    if (r.ok) {
+                        clearInterval(poll);
+                        location.reload();
+                    }
+                })
+                .catch(function() {
+                    if (attempts >= maxAttempts) {
+                        clearInterval(poll);
+                        location.reload();
+                    }
+                });
+        }, 2000);
     }
 
     // ── Health Banner ─────────────────────────────
