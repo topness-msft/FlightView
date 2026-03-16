@@ -858,10 +858,14 @@
             radar_altitude_ft: parseInt(CFG.radarAlt.value),
             radar_radius_ft: parseInt(CFG.radarRadius.value),
             poll_interval_sec: parseInt(CFG.poll.value),
-            adsbx_api_key: CFG.apikey.value,
             data_source: CFG.datasource.value,
             dump1090_url: CFG.dump1090Url.value,
         };
+        // Only send API key if user changed it (masked value starts with ••••)
+        var keyVal = CFG.apikey.value;
+        if (keyVal && keyVal.indexOf("\u2022") === -1) {
+            data.adsbx_api_key = keyVal;
+        }
         fetch("/api/config", {
             method: "POST",
             headers: { "Content-Type": "application/json" },

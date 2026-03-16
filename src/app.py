@@ -206,6 +206,13 @@ def handle_request_update():
 
 # --- Config API ---
 
+def _mask_key(key: str) -> str:
+    """Mask an API key, showing only the last 4 characters."""
+    if not key or len(key) <= 4:
+        return key
+    return "••••" + key[-4:]
+
+
 @app.route("/api/config", methods=["GET"])
 def get_config():
     """Return current configuration values."""
@@ -217,7 +224,7 @@ def get_config():
         "radar_altitude_ft": config.RADAR_ALTITUDE_FT,
         "radar_radius_ft": config.RADAR_RADIUS_FT,
         "poll_interval_sec": config.POLL_INTERVAL_SEC,
-        "adsbx_api_key": config.ADSBX_API_KEY,
+        "adsbx_api_key": _mask_key(config.ADSBX_API_KEY),
         "mock_mode": config.MOCK_MODE,
         "data_source": config.DATA_SOURCE,
         "dump1090_url": config.DUMP1090_URL,
