@@ -148,6 +148,13 @@ def poll_aircraft():
                         # Use FA operator as airline fallback
                         if display.get("airline") == "Unknown" and fa_route.get("operator"):
                             display["airline"] = fa_route["operator"]
+                        # Propagate route to aircraft_list so pinned views get it too
+                        disp_icao = display.get("icao24")
+                        for ac_summary in state.get("aircraft_list", []):
+                            if ac_summary.get("icao24") == disp_icao:
+                                ac_summary["route_origin"] = fa_route["origin"]
+                                ac_summary["route_destination"] = fa_route["destination"]
+                                break
 
             # 6. Attach health state and broadcast
             state["health"] = dict(_health)
