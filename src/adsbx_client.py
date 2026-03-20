@@ -38,6 +38,14 @@ class ADSBXClient:
         if cached and (time.time() - cached["timestamp"]) < self.CACHE_TTL_SEC:
             return cached["route_data"]
 
+        # Evict expired entries to prevent unbounded growth
+        if len(self._cache) > 200:
+            now = time.time()
+            self._cache = {
+                k: v for k, v in self._cache.items()
+                if (now - v["timestamp"]) < self.CACHE_TTL_SEC
+            }
+
         try:
             url = f"https://adsbexchange-com1.p.rapidapi.com/v2/icao/{icao24}/"
             headers = {

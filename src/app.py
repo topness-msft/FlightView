@@ -45,7 +45,6 @@ mock_source = MockDataSource(config.HOME_LAT, config.HOME_LON)
 
 # Track which icao24s we've already fetched routes for
 _known_icaos: set[str] = set()
-_last_display_icao: str | None = None  # triggers FA route lookup on change
 
 # --- Health state (pushed to frontend with each update) ---
 _health: dict = {
@@ -164,15 +163,7 @@ def poll_aircraft():
                 near_altitude_ft=config.ALTITUDE_LIMIT_FT,
             )
 
-            # 5. Route enrichment — only when display aircraft changes
-            global _last_display_icao
-            display = state.get("display")
-            display_icao = display.get("icao24") if display else None
-            if display_icao and display_icao != _last_display_icao:
-                _enrich_route(state)
-            _last_display_icao = display_icao
-
-            # 6. Attach health state and broadcast
+            # 5. Attach health state and broadcast
             state["health"] = dict(_health)
             socketio.emit("aircraft_update", state)
 
@@ -218,6 +209,31 @@ def handle_disconnect():
 def handle_request_update():
     """Handle manual update requests from the client."""
     emit("aircraft_update", state_mgr.get_display_state())
+
+
+@socketio.on("pin_flight")
+def handle_pin_flight(data):
+    """Fetch route enrichment for a pinned aircraft and push update."""
+    callsign = (data.get("callsign") or "").strip()
+    icao24 = (data.get("icao24") or "").strip()
+    if not callsign or config.MOCK_MODE:
+        return
+    fa_route = flightaware.get_route(callsign)
+    if not fa_route or not fa_route.get("origin"):
+        return
+    # Enrich the matching aircraft in current state
+    state = state_mgr.get_display_state()
+    for ac in state.get("aircraft_list", []):
+        if ac.get("icao24") == icao24:
+            ac["route_origin"] = fa_route["origin"]
+            ac["route_destination"] = fa_route["destination"]
+            ac["origin_city"] = fa_route.get("origin_name", "")
+            ac["destination_city"] = fa_route.get("destination_name", "")
+            if ac.get("airline") in ("", "Unknown") and fa_route.get("operator"):
+                ac["airline"] = fa_route["operator"]
+            break
+    state["health"] = dict(_health)
+    emit("aircraft_update", state)
 
 
 # --- Config API ---

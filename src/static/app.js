@@ -763,12 +763,18 @@
             }
         }
 
-        // Multi-plane views show total aircraft in radar zone
-        updateClassicMulti(list, totalCount);
-        updateModernMulti(list, totalCount);
-        // Single-plane views show near zone count (or "1 SELECTED" when pinned)
-        if (display) updateClassicSingle(display, pinnedIcao ? 1 : nearCount);
-        if (display) updateModernSingle(display, pinnedIcao ? 1 : nearCount);
+        // Only render the active theme to avoid DOM leaks in hidden views
+        if (theme === "classic") {
+            updateClassicMulti(list, totalCount);
+            if (display) updateClassicSingle(display, pinnedIcao ? 1 : nearCount);
+        } else {
+            updateModernMulti(list, totalCount);
+            if (display) updateModernSingle(display, pinnedIcao ? 1 : nearCount);
+        }
+        // Request route enrichment if detail view has no route data yet
+        if (display && !display.route_origin && display.callsign_raw) {
+            socket.emit("pin_flight", { icao24: display.icao24, callsign: display.callsign_raw || display.callsign || "" });
+        }
     }
 
     // ── Config Screen ─────────────────────────────
