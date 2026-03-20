@@ -570,8 +570,8 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     color:#1A1A1A; letter-spacing:3px; line-height:1;
 }
 .lhr__city {
-    font-size:0.6rem; font-weight:500; color:rgba(0,0,0,0.35);
-    text-transform:uppercase; letter-spacing:1.5px; margin-top:2px;
+    display:block; font-size:0.7rem; font-weight:500; color:rgba(0,0,0,0.35);
+    text-transform:uppercase; letter-spacing:1.5px; margin-top:4px;
 }
 .lhr__route-path {
     flex:1; display:flex; align-items:center; gap:8px;
@@ -590,15 +590,15 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 }
 .lhr__stat:last-child { border-right:none; }
 .lhr__stat-val {
-    font-family:var(--mono); font-size:clamp(1.2rem,2.5vw,1.7rem); font-weight:700;
+    font-family:var(--mono); font-size:clamp(1.6rem,3.5vw,2.4rem); font-weight:700;
     color:#1A1A1A;
 }
 .lhr__stat-unit {
-    font-size:0.55rem; font-weight:500; color:rgba(0,0,0,0.3);
+    font-size:0.65rem; font-weight:500; color:rgba(0,0,0,0.3);
     letter-spacing:0.5px;
 }
 .lhr__stat-lbl {
-    font-size:0.45rem; font-weight:700; color:rgba(0,0,0,0.2);
+    font-size:0.55rem; font-weight:700; color:rgba(0,0,0,0.2);
     letter-spacing:2px; text-transform:uppercase; margin-top:2px;
 }
 .lhr__footer {

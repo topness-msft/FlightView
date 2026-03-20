@@ -45,7 +45,7 @@ mock_source = MockDataSource(config.HOME_LAT, config.HOME_LON)
 
 # Track which icao24s we've already fetched routes for
 _known_icaos: set[str] = set()
-_known_fa_callsigns: set[str] = set()  # FlightAware lookups (near zone only)
+_last_display_icao: str | None = None  # triggers FA route lookup on change
 
 # --- Health state (pushed to frontend with each update) ---
 _health: dict = {
@@ -54,6 +54,36 @@ _health: dict = {
     "last_success": None,   # Epoch timestamp of last successful poll
     "data_source": config.DATA_SOURCE,
 }
+
+
+def _enrich_route(state: dict) -> None:
+    """Attach FlightAware route data to display aircraft and its aircraft_list entry."""
+    display = state.get("display")
+    if not display or config.MOCK_MODE:
+        return
+    callsign = display.get("callsign_raw", "").strip()
+    if not callsign:
+        return
+    fa_route = flightaware.get_route(callsign)
+    if not fa_route or not fa_route.get("origin"):
+        return
+
+    display["route_origin"] = fa_route["origin"]
+    display["route_destination"] = fa_route["destination"]
+    display["route_display"] = f"{fa_route['origin']} → {fa_route['destination']}"
+    display["origin_city"] = fa_route.get("origin_name", "")
+    display["destination_city"] = fa_route.get("destination_name", "")
+    if display.get("airline") == "Unknown" and fa_route.get("operator"):
+        display["airline"] = fa_route["operator"]
+    # Propagate to aircraft_list so pinned views get it too
+    disp_icao = display.get("icao24")
+    for ac in state.get("aircraft_list", []):
+        if ac.get("icao24") == disp_icao:
+            ac["route_origin"] = fa_route["origin"]
+            ac["route_destination"] = fa_route["destination"]
+            ac["origin_city"] = fa_route.get("origin_name", "")
+            ac["destination_city"] = fa_route.get("destination_name", "")
+            break
 
 
 def _fetch_from_source() -> list[dict]:
@@ -134,27 +164,13 @@ def poll_aircraft():
                 near_altitude_ft=config.ALTITUDE_LIMIT_FT,
             )
 
-            # 5. FlightAware route lookup — only for display aircraft (near zone)
-            # get_route() has internal 10-min cache so repeated calls are free
+            # 5. Route enrichment — only when display aircraft changes
+            global _last_display_icao
             display = state.get("display")
-            if display and not config.MOCK_MODE:
-                callsign = display.get("callsign_raw", "").strip()
-                if callsign:
-                    fa_route = flightaware.get_route(callsign)
-                    if fa_route and fa_route.get("origin"):
-                        display["route_origin"] = fa_route["origin"]
-                        display["route_destination"] = fa_route["destination"]
-                        display["route_display"] = f"{fa_route['origin']} → {fa_route['destination']}"
-                        # Use FA operator as airline fallback
-                        if display.get("airline") == "Unknown" and fa_route.get("operator"):
-                            display["airline"] = fa_route["operator"]
-                        # Propagate route to aircraft_list so pinned views get it too
-                        disp_icao = display.get("icao24")
-                        for ac_summary in state.get("aircraft_list", []):
-                            if ac_summary.get("icao24") == disp_icao:
-                                ac_summary["route_origin"] = fa_route["origin"]
-                                ac_summary["route_destination"] = fa_route["destination"]
-                                break
+            display_icao = display.get("icao24") if display else None
+            if display_icao and display_icao != _last_display_icao:
+                _enrich_route(state)
+            _last_display_icao = display_icao
 
             # 6. Attach health state and broadcast
             state["health"] = dict(_health)

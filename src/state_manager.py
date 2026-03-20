@@ -119,6 +119,8 @@ class AircraftStateManager:
                 "callsign_raw": ac.get("callsign_raw", ""),
                 "route_origin": ac.get("route_origin", ""),
                 "route_destination": ac.get("route_destination", ""),
+                "origin_city": ac.get("origin_city", ""),
+                "destination_city": ac.get("destination_city", ""),
             }
             for ac in sorted_active
         ]
@@ -186,6 +188,8 @@ class AircraftStateManager:
             "route_origin": route_origin,
             "route_destination": route_destination,
             "route_display": route_display,
+            "origin_city": "",
+            "destination_city": "",
             "altitude_ft": aircraft.get("altitude_ft", 0),
             "velocity_kts": aircraft.get("velocity_kts", 0),
             "heading": aircraft.get("heading", 0),

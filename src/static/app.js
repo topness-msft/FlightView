@@ -66,7 +66,9 @@
         reg: document.getElementById("md-reg"),
         routeRow: document.getElementById("md-route-row"),
         origin: document.getElementById("md-origin"),
+        originCity: document.getElementById("md-origin-city"),
         dest: document.getElementById("md-dest"),
+        destCity: document.getElementById("md-dest-city"),
         alt: document.getElementById("md-alt"),
         spd: document.getElementById("md-spd"),
         dist: document.getElementById("md-dist"),
@@ -611,7 +613,9 @@
         if (a.route_origin && a.route_destination) {
             MD.routeRow.style.display = "";
             MD.origin.textContent = a.route_origin;
+            MD.originCity.textContent = a.origin_city || "";
             MD.dest.textContent = a.route_destination;
+            MD.destCity.textContent = a.destination_city || "";
         } else {
             MD.routeRow.style.display = "none";
         }
