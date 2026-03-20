@@ -570,8 +570,8 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     color:#1A1A1A; letter-spacing:3px; line-height:1;
 }
 .lhr__city {
-    display:block; font-size:0.7rem; font-weight:500; color:rgba(0,0,0,0.35);
-    text-transform:uppercase; letter-spacing:1.5px; margin-top:4px;
+    display:block; font-size:clamp(3.2rem,7.2vw,4.8rem); font-weight:600; color:rgba(0,0,0,0.35);
+    text-transform:uppercase; letter-spacing:1.5px; margin-top:4px; line-height:1;
 }
 .lhr__route-path {
     flex:1; display:flex; align-items:center; gap:8px;
