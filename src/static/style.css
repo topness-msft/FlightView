@@ -585,8 +585,12 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     text-transform:uppercase; letter-spacing:1.5px; margin-top:4px; line-height:1;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
+.lhr__city-inner { display:inline; }
 .lhr__city.lhr__city--scroll {
     text-overflow:clip;
+}
+.lhr__city.lhr__city--scroll .lhr__city-inner {
+    display:inline-block;
     animation: cityScroll 6s linear 2s infinite;
 }
 @keyframes cityScroll {

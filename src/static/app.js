@@ -628,19 +628,32 @@
         if (a.route_origin && a.route_destination) {
             MD.routeRow.style.display = "";
             MD.origin.textContent = a.route_origin;
-            MD.originCity.textContent = a.origin_city || "";
             MD.dest.textContent = a.route_destination;
-            MD.destCity.textContent = a.destination_city || "";
-            requestAnimationFrame(() => {
-                [MD.originCity, MD.destCity].forEach(el => {
-                    if (el.scrollWidth > el.clientWidth + 2) {
-                        el.classList.add("lhr__city--scroll");
-                        el.style.setProperty("--scroll-dist", `${el.clientWidth - el.scrollWidth}px`);
-                    } else {
-                        el.classList.remove("lhr__city--scroll");
-                    }
+            var oc = a.origin_city || "";
+            var dc = a.destination_city || "";
+            // Only rebuild city DOM when text actually changes
+            if (MD.originCity.dataset.city !== oc) {
+                MD.originCity.dataset.city = oc;
+                MD.originCity.innerHTML = oc ? '<span class="lhr__city-inner">' + oc + '</span>' : "";
+                MD.originCity.classList.remove("lhr__city--scroll");
+            }
+            if (MD.destCity.dataset.city !== dc) {
+                MD.destCity.dataset.city = dc;
+                MD.destCity.innerHTML = dc ? '<span class="lhr__city-inner">' + dc + '</span>' : "";
+                MD.destCity.classList.remove("lhr__city--scroll");
+            }
+            if (!MD.originCity.classList.contains("lhr__city--scroll") || !MD.destCity.classList.contains("lhr__city--scroll")) {
+                requestAnimationFrame(() => {
+                    [MD.originCity, MD.destCity].forEach(el => {
+                        if (el.classList.contains("lhr__city--scroll")) return;
+                        var inner = el.querySelector(".lhr__city-inner");
+                        if (inner && inner.offsetWidth > el.clientWidth + 2) {
+                            el.classList.add("lhr__city--scroll");
+                            el.style.setProperty("--scroll-dist", (el.clientWidth - inner.offsetWidth) + "px");
+                        }
+                    });
                 });
-            });
+            }
         } else {
             MD.routeRow.style.display = "none";
         }
