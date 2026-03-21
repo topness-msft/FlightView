@@ -616,6 +616,16 @@
             MD.originCity.textContent = a.origin_city || "";
             MD.dest.textContent = a.route_destination;
             MD.destCity.textContent = a.destination_city || "";
+            requestAnimationFrame(() => {
+                [MD.originCity, MD.destCity].forEach(el => {
+                    if (el.scrollWidth > el.clientWidth + 2) {
+                        el.classList.add("lhr__city--scroll");
+                        el.style.setProperty("--scroll-dist", `${el.clientWidth - el.scrollWidth}px`);
+                    } else {
+                        el.classList.remove("lhr__city--scroll");
+                    }
+                });
+            });
         } else {
             MD.routeRow.style.display = "none";
         }

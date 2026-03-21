@@ -564,7 +564,7 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     padding:10px 0; border-top:2px solid rgba(0,0,0,0.06);
     border-bottom:2px solid rgba(0,0,0,0.06);
 }
-.lhr__endpoint { text-align:center; }
+.lhr__endpoint { text-align:center; flex:1; min-width:0; overflow:hidden; }
 .lhr__iata {
     font-family:var(--mono); font-size:clamp(4rem,9vw,6rem); font-weight:900;
     color:#1A1A1A; letter-spacing:3px; line-height:1;
@@ -573,6 +573,15 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     display:block; font-family:var(--mono); font-size:clamp(3.2rem,7.2vw,4.8rem); font-weight:600; color:rgba(0,0,0,0.35);
     text-transform:uppercase; letter-spacing:1.5px; margin-top:4px; line-height:1;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.lhr__city.lhr__city--scroll {
+    text-overflow:clip;
+    animation: cityScroll 6s linear 2s infinite;
+}
+@keyframes cityScroll {
+    0%,10%   { transform:translateX(0); }
+    45%,55%  { transform:translateX(var(--scroll-dist)); }
+    90%,100% { transform:translateX(0); }
 }
 .lhr__route-path {
     flex:1; display:flex; align-items:center; gap:8px;
