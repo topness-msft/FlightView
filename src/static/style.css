@@ -218,16 +218,27 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 /* LED Dot-Matrix Display */
 .cl-dotmatrix {
     display:inline-flex; justify-content:center;
+    max-width:100%; overflow:hidden;
 }
 .dm-panel {
     display:flex; flex-direction:column; gap:4px;
     background:#0A0A08; border-radius:4px; padding:8px 14px;
     border:1px solid #2A2820;
     box-shadow:inset 0 2px 8px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.02);
+    overflow:hidden; max-width:100%;
 }
 .dm-line {
     display:flex; align-items:center;
     justify-content:center;
+    white-space:nowrap;
+}
+.dm-line--scroll {
+    animation: dmScroll 8s linear 2s infinite;
+}
+@keyframes dmScroll {
+    0%,10%   { transform:translateX(0); }
+    45%,55%  { transform:translateX(var(--dm-scroll-dist)); }
+    90%,100% { transform:translateX(0); }
 }
 .dm-char {
     display:grid; grid-template-columns:repeat(5, 6px);

@@ -239,8 +239,19 @@
         var panel = document.createElement("div");
         panel.className = "dm-panel";
         panel.appendChild(buildDotLine(line1));
-        panel.appendChild(buildDotLine(line2));
+        if (line2) panel.appendChild(buildDotLine(line2));
         container.appendChild(panel);
+
+        // detect overflow on dot-matrix lines and add scroll animation
+        requestAnimationFrame(function() {
+            var lines = panel.querySelectorAll(".dm-line");
+            lines.forEach(function(line) {
+                if (line.scrollWidth > panel.clientWidth) {
+                    line.classList.add("dm-line--scroll");
+                    line.style.setProperty("--dm-scroll-dist", (panel.clientWidth - line.scrollWidth) + "px");
+                }
+            });
+        });
     }
 
     function buildDotLine(text) {
@@ -431,10 +442,14 @@
         var typeCode = codeParts.length > 1 ? codeParts.slice(1).join(" ") : tc;
         updateFlaps(CL.typeFlaps, (flightCode + "  " + typeCode).toUpperCase(), "flaps--xl");
 
-        // Dot-matrix: route
+        // Dot-matrix: route (line 1: IATA codes, line 2: city names)
         if (a.route_origin && a.route_destination) {
             CL.routeRow.classList.remove("no-route");
-            renderDotMatrix(CL.routeDm, a.route_origin + "  -  " + a.route_destination, "");
+            var cities = "";
+            if (a.origin_city && a.destination_city) {
+                cities = a.origin_city + " - " + a.destination_city;
+            }
+            renderDotMatrix(CL.routeDm, a.route_origin + "  -  " + a.route_destination, cities);
         } else {
             CL.routeRow.classList.add("no-route");
         }
