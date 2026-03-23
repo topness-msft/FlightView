@@ -23,6 +23,8 @@ class AircraftStateManager:
         self._display_aircraft: dict | None = None
         self._last_seen: dict[str, float] = {}
         self._prev_distances: dict[str, float] = {}
+        self._near_radius_ft: int = 1500
+        self._near_altitude_ft: int = 3000
         self._state: dict = {
             "display": None,
             "nearby_count": 0,
@@ -45,6 +47,8 @@ class AircraftStateManager:
         now = time.time()
         events: list[str] = []
         incoming_icaos: set[str] = set()
+        self._near_radius_ft = near_radius_ft
+        self._near_altitude_ft = near_altitude_ft
 
         # Process incoming aircraft
         for ac in aircraft_list:
@@ -62,6 +66,23 @@ class AircraftStateManager:
             # Store previous distance for direction calculation
             if icao in self._active and "distance_ft" in self._active[icao]:
                 self._prev_distances[icao] = self._active[icao]["distance_ft"]
+
+            # Carry forward API-enriched fields that the poll loop doesn't provide
+            if icao in self._active:
+                prev = self._active[icao]
+                for field in (
+                    "route_origin", "route_destination", "route_display",
+                    "origin_city", "destination_city",
+                ):
+                    if prev.get(field) and not ac.get(field):
+                        ac[field] = prev[field]
+                # Preserve API-sourced airline/type (prefixed to avoid overwriting real data)
+                if prev.get("airline") not in ("", "Unknown") and ac.get("airline") in ("", "Unknown"):
+                    ac["airline"] = prev["airline"]
+                if prev.get("flight_display") and not ac.get("flight_display"):
+                    ac["flight_display"] = prev["flight_display"]
+                if prev.get("aircraft_type") and not ac.get("aircraft_type"):
+                    ac["aircraft_type"] = prev["aircraft_type"]
 
             self._active[icao] = ac
             self._last_seen[icao] = now
@@ -100,6 +121,22 @@ class AircraftStateManager:
         else:
             self._display_aircraft = None
 
+        self._rebuild_state(events)
+        return self._state
+
+    def _rebuild_state(self, events: list[str] | None = None) -> None:
+        """Rebuild the broadcast state dict from current _active aircraft."""
+        sorted_active = sorted(
+            self._active.values(),
+            key=lambda a: a.get("distance_ft", float("inf")),
+        )
+
+        near_aircraft = [
+            ac for ac in sorted_active
+            if ac.get("distance_ft", float("inf")) <= self._near_radius_ft
+            and ac.get("altitude_ft", float("inf")) <= self._near_altitude_ft
+        ]
+
         # Build summary list for all active aircraft (rich data for radar + board views)
         aircraft_summaries = [
             {
@@ -130,9 +167,8 @@ class AircraftStateManager:
             "nearby_count": len(near_aircraft),
             "aircraft_count": len(self._active),
             "aircraft_list": aircraft_summaries,
-            "events": events,
+            "events": events or [],
         }
-        return self._state
 
     def enrich_aircraft(
         self,
@@ -203,3 +239,27 @@ class AircraftStateManager:
     def get_display_state(self) -> dict:
         """Return the current state without updating (for new WebSocket connections)."""
         return self._state
+
+    def enrich_active(self, icao24: str, enrichment: dict) -> None:
+        """Apply API enrichment data to an active aircraft (persists across polls).
+
+        Args:
+            icao24: Aircraft ICAO24 hex address.
+            enrichment: Dict of fields to merge (route, city, operator, type).
+        """
+        ac = self._active.get(icao24)
+        if not ac:
+            return
+        # Always set route/city fields
+        for field in ("route_origin", "route_destination", "route_display",
+                       "origin_city", "destination_city"):
+            if enrichment.get(field):
+                ac[field] = enrichment[field]
+        # Backfill airline from FA operator if local decode was Unknown
+        if ac.get("airline") in ("", "Unknown") and enrichment.get("fa_operator"):
+            ac["airline"] = enrichment["fa_operator"]
+        # Backfill aircraft type from FA if local ICAO DB had nothing
+        if not ac.get("aircraft_type") and enrichment.get("fa_aircraft_type"):
+            ac["aircraft_type"] = enrichment["fa_aircraft_type"]
+        # Rebuild the state so get_display_state() reflects the enrichment
+        self._rebuild_state()

@@ -72,6 +72,13 @@ AIRLINE_CODES: dict[str, dict[str, str]] = {
     "ETD": {"name": "Etihad Airways", "iata": "EY"},
     "SVA": {"name": "Saudia", "iata": "SV"},
     "ELY": {"name": "El Al Israel Airlines", "iata": "LY"},
+    "RJA": {"name": "Royal Jordanian", "iata": "RJ"},
+    "MEA": {"name": "Middle East Airlines", "iata": "ME"},
+    "GFA": {"name": "Gulf Air", "iata": "GF"},
+    "OMA": {"name": "Oman Air", "iata": "WY"},
+    "KAC": {"name": "Kuwait Airways", "iata": "KU"},
+    "IAW": {"name": "Iraqi Airways", "iata": "IA"},
+    "RYS": {"name": "Royal Air Charter", "iata": ""},
     # Asia-Pacific
     "CPA": {"name": "Cathay Pacific", "iata": "CX"},
     "SIA": {"name": "Singapore Airlines", "iata": "SQ"},

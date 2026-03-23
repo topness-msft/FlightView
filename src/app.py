@@ -55,36 +55,6 @@ _health: dict = {
 }
 
 
-def _enrich_route(state: dict) -> None:
-    """Attach FlightAware route data to display aircraft and its aircraft_list entry."""
-    display = state.get("display")
-    if not display or config.MOCK_MODE:
-        return
-    callsign = display.get("callsign_raw", "").strip()
-    if not callsign:
-        return
-    fa_route = flightaware.get_route(callsign)
-    if not fa_route or not fa_route.get("origin"):
-        return
-
-    display["route_origin"] = fa_route["origin"]
-    display["route_destination"] = fa_route["destination"]
-    display["route_display"] = f"{fa_route['origin']} → {fa_route['destination']}"
-    display["origin_city"] = fa_route.get("origin_name", "")
-    display["destination_city"] = fa_route.get("destination_name", "")
-    if display.get("airline") == "Unknown" and fa_route.get("operator"):
-        display["airline"] = fa_route["operator"]
-    # Propagate to aircraft_list so pinned views get it too
-    disp_icao = display.get("icao24")
-    for ac in state.get("aircraft_list", []):
-        if ac.get("icao24") == disp_icao:
-            ac["route_origin"] = fa_route["origin"]
-            ac["route_destination"] = fa_route["destination"]
-            ac["origin_city"] = fa_route.get("origin_name", "")
-            ac["destination_city"] = fa_route.get("destination_name", "")
-            break
-
-
 def _fetch_from_source() -> list[dict]:
     """Fetch aircraft from the configured data source.
 
@@ -221,17 +191,24 @@ def handle_pin_flight(data):
     fa_route = flightaware.get_route(callsign)
     if not fa_route or not fa_route.get("origin"):
         return
-    # Enrich the matching aircraft in current state
+    # Build enrichment fields from FlightAware data
+    enrichment = {
+        "route_origin": fa_route["origin"],
+        "route_destination": fa_route["destination"],
+        "route_display": f"{fa_route['origin']} → {fa_route['destination']}",
+        "origin_city": fa_route.get("origin_name", ""),
+        "destination_city": fa_route.get("destination_name", ""),
+    }
+    if fa_route.get("operator"):
+        enrichment["fa_operator"] = fa_route["operator"]
+    if fa_route.get("aircraft_type"):
+        enrichment["fa_aircraft_type"] = fa_route["aircraft_type"]
+
+    # Persist enrichment into state manager's active aircraft (survives poll cycles)
+    state_mgr.enrich_active(icao24, enrichment)
+
+    # Emit updated state
     state = state_mgr.get_display_state()
-    for ac in state.get("aircraft_list", []):
-        if ac.get("icao24") == icao24:
-            ac["route_origin"] = fa_route["origin"]
-            ac["route_destination"] = fa_route["destination"]
-            ac["origin_city"] = fa_route.get("origin_name", "")
-            ac["destination_city"] = fa_route.get("destination_name", "")
-            if ac.get("airline") in ("", "Unknown") and fa_route.get("operator"):
-                ac["airline"] = fa_route["operator"]
-            break
     state["health"] = dict(_health)
     emit("aircraft_update", state)
 

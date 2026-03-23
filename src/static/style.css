@@ -260,7 +260,7 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     justify-content:center; margin-bottom:16px; padding:10px 0;
     border-top:1px solid var(--cl-faint); border-bottom:1px solid var(--cl-faint);
 }
-.cl-card__row--route.no-route { display:none; }
+.cl-card__row--route.no-route { visibility:hidden; height:0; overflow:hidden; padding:0; margin:0; border:none; }
 .cl-route-path { display:flex; align-items:center; margin:0 20px; flex:0 1 180px; }
 .cl-route-path__dash { flex:1; height:0; border-top:2px dashed var(--cl-amber-ghost); }
 .cl-route-path__icon {
@@ -574,6 +574,11 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     display:flex; align-items:center; gap:14px;
     padding:10px 0; border-top:2px solid rgba(0,0,0,0.06);
     border-bottom:2px solid rgba(0,0,0,0.06);
+    transition:opacity 0.3s ease;
+}
+.lhr__route.no-route {
+    opacity:0; height:0; overflow:hidden; padding:0; border:none;
+    transition:none;
 }
 .lhr__endpoint { text-align:center; flex:1; min-width:0; overflow:hidden; }
 .lhr__iata {

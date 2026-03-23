@@ -626,7 +626,7 @@
         MD.reg.textContent = a.registration ? "· " + a.registration : "";
 
         if (a.route_origin && a.route_destination) {
-            MD.routeRow.style.display = "";
+            MD.routeRow.classList.remove("no-route");
             MD.origin.textContent = a.route_origin;
             MD.dest.textContent = a.route_destination;
             var oc = a.origin_city || "";
@@ -655,7 +655,7 @@
                 });
             }
         } else {
-            MD.routeRow.style.display = "none";
+            MD.routeRow.classList.add("no-route");
         }
 
         MD.alt.textContent = (a.altitude_ft != null && !isNaN(a.altitude_ft)) ? Math.round(a.altitude_ft).toLocaleString("en-US") : "—";
