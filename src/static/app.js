@@ -580,6 +580,7 @@
 
         card.appendChild(left); card.appendChild(al);
         card.appendChild(tp); card.appendChild(stats);
+        card.addEventListener("click", function() { pinFlight(ac.icao24); });
         return card;
     }
 
@@ -770,6 +771,8 @@
                     + '<span class="md-li__stat"><span class="md-li__icon">↔</span>' + fmt(ac.distance_ft) + ' <span class="md-li__unit">ft</span></span>';
                 item.appendChild(left); item.appendChild(al);
                 item.appendChild(tp); item.appendChild(stats);
+                item.dataset.icao = ac.icao24;
+                item.addEventListener("click", function() { pinFlight(ac.icao24); });
                 container.appendChild(item);
             }
         }

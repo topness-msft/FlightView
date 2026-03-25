@@ -421,7 +421,9 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     border-radius:5px; padding:8px 14px; flex-shrink:0;
     position:relative;
     animation: rowIn 0.3s ease-out;
+    cursor:pointer; transition:background 0.15s;
 }
+.cl-strip:hover { background:color-mix(in srgb, var(--cl-surface) 80%, var(--cl-amber)); }
 .cl-strip.approaching { border-left-color:var(--c-emerald); }
 .cl-strip.departing   { border-left-color:var(--c-rose); }
 .cl-strip.overhead    { border-left-color:var(--cl-amber); }
@@ -743,7 +745,9 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     grid-template-columns: 1fr 1.5fr 1fr 80px;
     align-items:center; justify-items:center;
     animation: rowIn 0.3s ease-out;
+    cursor:pointer; transition:background 0.15s;
 }
+.md-list-item:hover { background:color-mix(in srgb, var(--md-surface) 80%, var(--md-blue-bright)); }
 
 /* Left: flight code + airline stacked */
 .md-li__left {
