@@ -169,14 +169,24 @@ echo "→ Service installed and started"
 if $INSTALL_KIOSK; then
     echo "→ Configuring kiosk mode..."
     AUTOSTART_DIR="$HOME_DIR/.config/autostart"
-    mkdir -p "$AUTOSTART_DIR"
+    LAUNCHER_DIR="$HOME_DIR/.local/bin"
+    mkdir -p "$AUTOSTART_DIR" "$LAUNCHER_DIR"
+
+    # Install the kiosk launcher script (waits for server, watchdogs Chromium,
+    # auto-restarts on renderer crash / "Aw Snap")
+    install -m 755 "$SCRIPT_DIR/scripts/kiosk-launcher.sh" \
+        "$LAUNCHER_DIR/flightview-kiosk-launcher"
+
+    # KIOSK_URL defaults to http://localhost:5000 inside the launcher; override
+    # here only if the operator has configured a different port.
+    KIOSK_URL_VAL="http://localhost:${PORT:-5000}"
 
     cat > "$AUTOSTART_DIR/flightview-kiosk.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Name=FlightView Kiosk
-Comment=Launch FlightView in fullscreen kiosk mode
-Exec=bash -c 'sleep 5 && chromium-browser --kiosk --noerrdialogs --disable-infobars --disable-translate --no-first-run --fast --fast-start --disable-features=TranslateUI --disk-cache-dir=/dev/null http://localhost:5000'
+Comment=Launch FlightView in fullscreen kiosk mode (auto-recovers on renderer crash)
+Exec=env KIOSK_URL=$KIOSK_URL_VAL $LAUNCHER_DIR/flightview-kiosk-launcher
 X-GNOME-Autostart-enabled=true
 EOF
 
