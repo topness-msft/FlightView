@@ -322,6 +322,19 @@ def get_receiver_status():
     return jsonify(result)
 
 
+@app.route("/api/route", methods=["GET"])
+def get_route():
+    """Diagnostic: return raw route lookup for a callsign (no caching effect)."""
+    callsign = request.args.get("callsign", "").strip()
+    if not callsign:
+        return jsonify({"error": "callsign required"}), 400
+    try:
+        route = route_client.get_route(callsign)
+        return jsonify({"callsign": callsign, "route": route, "client_enabled": route_client.enabled})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 @app.route("/api/update", methods=["POST"])
 def do_update():
     """Git pull (or force-reset to origin/main) and restart the FlightView service.
