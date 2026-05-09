@@ -324,22 +324,45 @@ def get_receiver_status():
 
 @app.route("/api/update", methods=["POST"])
 def do_update():
-    """Git pull and restart the FlightView service."""
+    """Git pull (or force-reset to origin/main) and restart the FlightView service.
+
+    Pass {"force": true} or ?force=true to discard local changes and
+    hard-reset to origin/main before restart. Use this when the Pi has
+    drifted from main (uncommitted edits, manual hotfixes, etc.).
+    """
     import subprocess
     repo_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    body = request.get_json(silent=True) or {}
+    force = bool(body.get("force")) or request.args.get("force", "").lower() in ("1", "true", "yes")
     try:
-        pull = subprocess.run(
-            ["git", "pull", "origin", "main"],
-            cwd=repo_dir, capture_output=True, text=True, timeout=30,
-        )
-        if pull.returncode != 0:
-            return jsonify({"ok": False, "error": pull.stderr.strip()}), 500
+        if force:
+            fetch = subprocess.run(
+                ["git", "fetch", "origin", "main"],
+                cwd=repo_dir, capture_output=True, text=True, timeout=30,
+            )
+            if fetch.returncode != 0:
+                return jsonify({"ok": False, "error": fetch.stderr.strip()}), 500
+            reset = subprocess.run(
+                ["git", "reset", "--hard", "origin/main"],
+                cwd=repo_dir, capture_output=True, text=True, timeout=30,
+            )
+            if reset.returncode != 0:
+                return jsonify({"ok": False, "error": reset.stderr.strip()}), 500
+            output = reset.stdout.strip()
+        else:
+            pull = subprocess.run(
+                ["git", "pull", "origin", "main"],
+                cwd=repo_dir, capture_output=True, text=True, timeout=30,
+            )
+            if pull.returncode != 0:
+                return jsonify({"ok": False, "error": pull.stderr.strip()}), 500
+            output = pull.stdout.strip()
 
-        restart = subprocess.Popen(
+        subprocess.Popen(
             ["sudo", "systemctl", "restart", "flightview"],
             cwd=repo_dir,
         )
-        return jsonify({"ok": True, "output": pull.stdout.strip()})
+        return jsonify({"ok": True, "output": output, "forced": force})
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 500
 
