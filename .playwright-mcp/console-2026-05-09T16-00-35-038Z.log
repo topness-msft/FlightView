@@ -1,7 +1,0 @@
-[    1218ms] [LOG] FlightView multi-theme display loaded @ http://localhost:5000/static/app.js?v=55:1104
-[    1243ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5000/:0
-[   31188ms] [LOG] FlightView multi-theme display loaded @ http://localhost:5000/static/app.js?v=55:1104
-[   31207ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ http://localhost:5000/:0
-[   60708ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:5000/socket.io/?EIO=4&transport=polling&t=PuDUFpS:0
-[   65617ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:5000/socket.io/?EIO=4&transport=polling&t=PuDUH09:0
-[   72993ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:5000/socket.io/?EIO=4&transport=polling&t=PuDUIp6:0

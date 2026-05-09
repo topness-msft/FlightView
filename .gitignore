@@ -35,3 +35,8 @@ test-runs/*/logs.txt
 test-runs/*/screenshots/
 test-runs/*/recording.*
 playwright-videos/
+
+# Local artifacts
+temp/
+.playwright-mcp/
+*.png
