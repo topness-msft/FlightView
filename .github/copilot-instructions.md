@@ -33,7 +33,7 @@ Data Source (RTL-SDR / OpenSky / Mock)
   → callsign_decoder: ICAO airline prefix → airline name + flight number
   → icao_db: typecode → full aircraft type name
   → state_manager: classify near/far zone, detect enter/leave, pick display aircraft
-  → flightaware_client: route lookup for display aircraft only (cached 10 min)
+  → adsblol_client: route lookup for display aircraft only (cached 10 min)
   → WebSocket broadcast → frontend renders themed views
 ```
 
@@ -55,7 +55,8 @@ The frontend auto-switches between multi-plane view (radar + list) and single-pl
 | `geo_filter.py` | Haversine distance (ft), bearing, compass direction, filters + sorts by distance |
 | `callsign_decoder.py` | Maps 3-letter ICAO airline prefixes to airline names/IATA codes (74+ airlines) |
 | `icao_db.py` | Maps ICAO typecodes to full aircraft type names (80+ types), CSV database fallback |
-| `flightaware_client.py` | FlightAware AeroAPI route lookup, 10-min cache per callsign, only for near-zone display |
+| `flightaware_client` | (removed — replaced by `adsblol_client`) |
+| `adsblol_client.py` | adsb.lol route API client (free, no key), 10-min cache per callsign |
 | `dump1090_client.py` | Local RTL-SDR receiver HTTP client (readsb/dump1090 JSON) |
 | `opensky_client.py` | OpenSky Network REST API client with OAuth2 support |
 | `mock_data.py` | Generates 4–8 simulated aircraft with realistic flight behaviors |
@@ -88,7 +89,7 @@ When displaying aircraft type from the ICAO database, use `codeParts.slice(1).jo
 
 ### Route Enrichment
 
-FlightAware route lookups run only for the display aircraft (nearest in near zone) and are cached 10 minutes per callsign. Route data is propagated back to the matching `aircraft_list` entry for pinned flight views. Without a valid `ADSBX_API_KEY`/`FLIGHTAWARE_API_KEY`, route enrichment is disabled and the dot-matrix row is hidden.
+Route lookups via [adsb.lol](https://adsb.lol)'s free community database run only for the display aircraft (nearest in near zone) and are cached 10 minutes per callsign. Route data is propagated back to the matching `aircraft_list` entry for pinned flight views. No API key is required.
 
 ### Units
 
@@ -100,7 +101,7 @@ Tests use `sys.path.insert(0, ...)` to resolve `src/` imports. Helper factories 
 
 ### Configuration
 
-All settings live in `.env` (see `.env.example`). The config screen (`POST /api/config`) updates settings live and persists them to `.env`. Key settings: `HOME_LAT`/`HOME_LON` (location), `DATA_SOURCE` (rtlsdr/opensky/mock), `MOCK_MODE` (dev/testing), zone radii/altitudes, and `ADSBX_API_KEY` (FlightAware route enrichment).
+All settings live in `.env` (see `.env.example`). The config screen (`POST /api/config`) updates settings live and persists them to `.env`. Key settings: `HOME_LAT`/`HOME_LON` (location), `DATA_SOURCE` (rtlsdr/opensky/mock), `MOCK_MODE` (dev/testing), and zone radii/altitudes. Route enrichment via adsb.lol requires no key.
 
 ### Deployment
 

@@ -20,7 +20,7 @@ from geo_filter import filter_aircraft, haversine_distance_ft
 from callsign_decoder import decode_callsign
 from icao_db import icao_db
 from adsbx_client import ADSBXClient
-from flightaware_client import FlightAwareClient
+from adsblol_client import AdsbLolClient
 from state_manager import AircraftStateManager
 from mock_data import MockDataSource
 
@@ -40,7 +40,7 @@ state_mgr = AircraftStateManager()
 opensky = OpenSkyClient()
 dump1090 = Dump1090Client(base_url=config.DUMP1090_URL)
 adsbx = ADSBXClient(api_key=config.ADSBX_API_KEY)
-flightaware = FlightAwareClient(api_key=config.FLIGHTAWARE_API_KEY or config.ADSBX_API_KEY)
+route_client = AdsbLolClient()
 mock_source = MockDataSource(config.HOME_LAT, config.HOME_LON)
 
 # Track which icao24s we've already fetched routes for
@@ -188,21 +188,20 @@ def handle_pin_flight(data):
     icao24 = (data.get("icao24") or "").strip()
     if not callsign or config.MOCK_MODE:
         return
-    fa_route = flightaware.get_route(callsign)
-    if not fa_route or not fa_route.get("origin"):
+    route = route_client.get_route(callsign)
+    if not route or not route.get("origin"):
         return
-    # Build enrichment fields from FlightAware data
     enrichment = {
-        "route_origin": fa_route["origin"],
-        "route_destination": fa_route["destination"],
-        "route_display": f"{fa_route['origin']} → {fa_route['destination']}",
-        "origin_city": fa_route.get("origin_name", ""),
-        "destination_city": fa_route.get("destination_name", ""),
+        "route_origin": route["origin"],
+        "route_destination": route["destination"],
+        "route_display": f"{route['origin']} → {route['destination']}",
+        "origin_city": route.get("origin_name", ""),
+        "destination_city": route.get("destination_name", ""),
     }
-    if fa_route.get("operator"):
-        enrichment["fa_operator"] = fa_route["operator"]
-    if fa_route.get("aircraft_type"):
-        enrichment["fa_aircraft_type"] = fa_route["aircraft_type"]
+    if route.get("operator"):
+        enrichment["fa_operator"] = route["operator"]
+    if route.get("aircraft_type"):
+        enrichment["fa_aircraft_type"] = route["aircraft_type"]
 
     # Persist enrichment into state manager's active aircraft (survives poll cycles)
     state_mgr.enrich_active(icao24, enrichment)

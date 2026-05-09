@@ -15,7 +15,7 @@ Real-time overhead flight tracker for Raspberry Pi touchscreen kiosks. Detects a
 - 🔄 **Auto-switching** between multi-plane (radar + list) and single-plane (detail card) based on aircraft proximity
 - 📱 **Touch-friendly config screen** for all settings
 - 📐 **Responsive layout** for 800×480 and 1024×600 screens
-- 🌐 **Route enrichment** via FlightAware AeroAPI (optional, free tier available)
+- 🌐 **Route enrichment** via [adsb.lol](https://adsb.lol) (free, community-maintained, no key required)
 - 🧪 **Mock data mode** for development and testing without live API access
 
 ## Tech Stack
@@ -24,7 +24,7 @@ Real-time overhead flight tracker for Raspberry Pi touchscreen kiosks. Detects a
 - **Frontend:** Vanilla JS + CSS (no build tools needed)
 - **Data Sources:**
   - OpenSky Network — live aircraft positions (free, no API key)
-  - FlightAware AeroAPI — route enrichment for single-plane view (optional, $5/month free tier)
+  - adsb.lol — route enrichment for single-plane view (free, no API key)
 - **Enrichment:** Static ICAO aircraft database + airline callsign decoder (100+ airlines)
 - **Fonts:** Outfit + JetBrains Mono (loaded from Google Fonts)
 
@@ -88,7 +88,6 @@ All settings can be changed via the touch-friendly config screen (⚙ button) or
 | `RADAR_ALTITUDE_FT` | `15000` | Far zone altitude ceiling (shown on radar/board) |
 | `RADAR_RADIUS_FT` | `15000` | Far zone radius (shown on radar/board) |
 | `POLL_INTERVAL_SEC` | `15` | How often to poll OpenSky (seconds) |
-| `ADSBX_API_KEY` | | FlightAware AeroAPI key (optional, for route data) |
 | `MOCK_MODE` | `False` | Enable mock data for testing |
 
 ### Zone Configuration Tips
@@ -112,7 +111,7 @@ All settings can be changed via the touch-friendly config screen (⚙ button) or
 │  Flask Server                                        │
 │  ├── Poller Thread (OpenSky → geo_filter → enrich)   │
 │  ├── State Manager (near/far zone classification)    │
-│  ├── FlightAware Client (route lookup, cached)       │
+│  ├── adsb.lol Client (route lookup, cached)         │
 │  ├── Callsign Decoder (100+ airline ICAO codes)      │
 │  └── Config API (GET/POST with .env persistence)     │
 └─────────────────────────────────────────────────────┘
@@ -133,14 +132,7 @@ Mock mode generates 4–7 simulated aircraft with realistic behaviors (approachi
 
 ## API Keys
 
-### FlightAware AeroAPI (optional)
-Provides origin → destination route data for the single-plane detail view.
-
-1. Sign up at [flightaware.com/aeroapi](https://www.flightaware.com/aeroapi/)
-2. Get a Personal tier key ($5/month free credit — plenty for this use case)
-3. Add to config screen or `.env` as `ADSBX_API_KEY`
-
-Routes are only looked up when an aircraft enters the near zone (detail view), with a 10-minute cache per callsign. Typical usage: 20–50 API calls/day.
+No API keys required. Route enrichment uses [adsb.lol](https://adsb.lol)'s free community route database — origin → destination is looked up by callsign when an aircraft enters the near zone, with a 10-minute cache per callsign.
 
 ## License
 

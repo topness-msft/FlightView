@@ -11,7 +11,7 @@ Real-time overhead flight tracker for Raspberry Pi touchscreen kiosks (7" 800×4
 - **Backend:** Python 3.11+ / Flask / Flask-SocketIO (threading async mode)
 - **Frontend:** Vanilla JS + CSS (no build tools), Google Fonts (Outfit + JetBrains Mono)
 - **Primary data:** OpenSky Network API (free, no key required)
-- **Route enrichment:** FlightAware AeroAPI (free $5/month tier, single-plane only)
+- **Route enrichment:** adsb.lol route API (free, no key, community-maintained)
 - **Aircraft DB:** OpenSky aircraft database (520K records, auto-downloaded ~90MB CSV)
 - **Enrichment:** Callsign decoder (100+ airlines including regional carriers), ICAO type lookup
 - **Config:** .env file + touch-friendly config screen with .env persistence
@@ -38,20 +38,20 @@ poll_aircraft() loop (every 15s)
   → geo_filter.filter_aircraft() (haversine + altitude, uses RADAR zone)
   → enrich: callsign_decoder + icao_db (520K records) + mock routes
   → AircraftStateManager.update() (near/far zone classification)
-  → FlightAwareClient.get_route() (single-plane display only, 10-min cache)
+  → AdsbLolClient.get_route() (single-plane display only, 10-min cache)
   → socketio.emit("aircraft_update") → browser WebSocket
 ```
 
 ## Dual-Zone Filtering
-- **Near zone** (RADIUS_LIMIT_FT / ALTITUDE_LIMIT_FT): Triggers single-plane detail view + FlightAware route lookup
+- **Near zone** (RADIUS_LIMIT_FT / ALTITUDE_LIMIT_FT): Triggers single-plane detail view + adsb.lol route lookup
 - **Far zone** (RADAR_RADIUS_FT / RADAR_ALTITUDE_FT): Shown on radar scope and card strip list
 - Auto-switching: display field is non-null only when aircraft in near zone
 
 ## Key Files
-- src/app.py — Flask entry point, poller, FlightAware integration, config API
+- src/app.py — Flask entry point, poller, route enrichment integration, config API
 - src/config.py — .env loader, Config dataclass with dual-zone fields
 - src/opensky_client.py — OpenSky REST API client (bbox from RADAR zone, rebuilt each poll)
-- src/flightaware_client.py — FlightAware AeroAPI route lookup with 10-min cache
+- src/adsblol_client.py — adsb.lol route lookup with 10-min cache (free, no key)
 - src/geo_filter.py — Haversine distance, bearing, compass, altitude filter
 - src/icao_db.py — Auto-downloads 520K-record OpenSky aircraft database on first run
 - src/callsign_decoder.py — 100+ ICAO airline prefixes including regional carriers (UCA→United, etc.)
@@ -64,8 +64,8 @@ poll_aircraft() loop (every 15s)
 
 ## Important Decisions
 - OpenSky bbox uses RADAR_RADIUS_FT (not near zone) to catch all regional aircraft
-- FlightAware only called for near-zone display aircraft (conserves free-tier API budget)
-- FlightAware operator field used as airline fallback when callsign decoder returns "Unknown"
+- Route enrichment only called for near-zone display aircraft (keeps load minimal)
+- adsb.lol returns airport `location` (city) used for the dot-matrix scrolling city display
 - Regional carriers mapped to parent airlines (UCA/GJS→United, JIA/MXY→American, etc.)
 - ICAO aircraft database auto-downloaded to data/ directory (gitignored)
 - Cache-busting via ?v=N query params on CSS/JS links
@@ -74,7 +74,7 @@ poll_aircraft() loop (every 15s)
 ## How to Run
 ```bash
 pip install -r requirements.txt
-cp .env.example .env  # Edit with your lat/lon and FlightAware key
+cp .env.example .env  # Edit with your lat/lon
 cd src && python app.py
 # Open http://localhost:5000
 ```
