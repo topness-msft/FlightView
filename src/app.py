@@ -423,5 +423,6 @@ if __name__ == "__main__":
     logger.info("FlightView starting — Home: (%s, %s)", config.HOME_LAT, config.HOME_LON)
     logger.info("  Data source: %s | Poll interval: %ss", config.DATA_SOURCE, config.POLL_INTERVAL_SEC)
     logger.info("  Altitude limit: %s ft | Radius limit: %s ft", config.ALTITUDE_LIMIT_FT, config.RADIUS_LIMIT_FT)
+    logger.info("  Listening on port %s", config.PORT)
     socketio.start_background_task(poll_aircraft)
-    socketio.run(app, host="0.0.0.0", port=5000, debug=False, allow_unsafe_werkzeug=True)
+    socketio.run(app, host="0.0.0.0", port=config.PORT, debug=False, allow_unsafe_werkzeug=True)
