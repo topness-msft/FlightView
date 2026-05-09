@@ -1,0 +1,97 @@
+- generic [active] [ref=e1]:
+  - generic:
+    - generic: ⚠
+    - generic:
+      - generic: ADS-B receiver offline
+      - generic: Check SDR connection
+  - navigation:
+    - button "CLASSIC" [ref=e2] [cursor=pointer]
+    - button "⚙" [ref=e3] [cursor=pointer]
+  - generic [ref=e15]:
+    - banner [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]: ◆
+        - generic [ref=e19]: AA 321
+        - generic [ref=e20]: 6 NEARBY
+      - generic [ref=e22]:
+        - generic [ref=e23]: A321
+        - generic [ref=e24]: AIRBUS A321
+    - main [ref=e26]:
+      - generic [ref=e28]:
+        - generic [ref=e30]: A
+        - generic [ref=e32]: M
+        - generic [ref=e34]: E
+        - generic [ref=e36]: R
+        - generic [ref=e38]: I
+        - generic [ref=e40]: C
+        - generic [ref=e42]: A
+        - generic [ref=e44]: "N"
+        - generic [ref=e47]: A
+        - generic [ref=e49]: I
+        - generic [ref=e51]: R
+        - generic [ref=e53]: L
+        - generic [ref=e55]: I
+        - generic [ref=e57]: "N"
+        - generic [ref=e59]: E
+        - generic [ref=e61]: S
+      - generic [ref=e63]:
+        - generic [ref=e65]: A
+        - generic [ref=e67]: A
+        - generic [ref=e70]: "3"
+        - generic [ref=e72]: "2"
+        - generic [ref=e74]: "1"
+      - generic [ref=e475]:
+        - generic [ref=e476]:
+          - img [ref=e477]:
+            - generic [ref=e528]: "0"
+            - generic [ref=e529]: "5"
+            - generic [ref=e530]: "10"
+            - generic [ref=e531]: "15"
+            - generic [ref=e532]: "20"
+            - generic [ref=e533]: "25"
+            - generic [ref=e534]: "30"
+            - generic [ref=e535]: "35"
+            - generic [ref=e536]: "40"
+            - generic [ref=e537]: "45"
+            - generic [ref=e539]: FEET
+          - generic:
+            - generic: 1,943
+        - generic [ref=e548]:
+          - img [ref=e549]:
+            - generic [ref=e594]: "0"
+            - generic [ref=e595]: "50"
+            - generic [ref=e596]: "100"
+            - generic [ref=e597]: "150"
+            - generic [ref=e598]: "200"
+            - generic [ref=e599]: "250"
+            - generic [ref=e600]: "300"
+            - generic [ref=e601]: "350"
+            - generic [ref=e602]: "400"
+            - generic [ref=e604]: KNOTS
+          - generic:
+            - generic: "169"
+        - generic [ref=e613]:
+          - img [ref=e614]:
+            - generic [ref=e645]: "0"
+            - generic [ref=e646]: "3"
+            - generic [ref=e647]: "6"
+            - generic [ref=e648]: "9"
+            - generic [ref=e649]: "12"
+            - generic [ref=e650]: "15"
+            - generic [ref=e652]: FEET
+          - generic:
+            - generic: "763"
+        - generic [ref=e661]:
+          - img [ref=e662]:
+            - generic [ref=e687]: "-6"
+            - generic [ref=e688]: "-3"
+            - generic [ref=e689]: "0"
+            - generic [ref=e690]: "3"
+            - generic [ref=e691]: "6"
+            - generic [ref=e693]: FT/MIN
+          - generic:
+            - generic: "-569"
+      - generic [ref=e702]:
+        - generic [ref=e703]: APPROACHING
+        - generic [ref=e704]: from SE
+        - generic [ref=e705]: 114°

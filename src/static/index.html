@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=53">
+    <link rel="stylesheet" href="/static/style.css?v=54">
 </head>
 <body>
 
@@ -65,9 +65,13 @@
             <div class="cl-hdr__left">
                 <span class="cl-hdr__diamond">◆</span>
                 <span id="cl-s-flight" class="cl-hdr__flight">—</span>
+                <span id="cl-s-count" class="cl-hdr__count">0 NEARBY</span>
             </div>
             <div class="cl-hdr__right">
-                <span id="cl-s-count" class="cl-hdr__count">0 NEARBY</span>
+                <div class="cl-hdr__airframe">
+                    <span id="cl-s-airframe-code" class="cl-hdr__airframe-code">—</span>
+                    <span id="cl-s-airframe-name" class="cl-hdr__airframe-name"></span>
+                </div>
                 <span id="cl-s-conn" class="hdr-conn"></span>
             </div>
         </header>
@@ -138,8 +142,11 @@
                 <h1 id="md-airline" class="lhr__airline">—</h1>
                 <div class="lhr__meta">
                     <span id="md-s-badge" class="lhr__flight">—</span>
-                    <span id="md-type" class="lhr__type">—</span>
                     <span id="md-reg" class="lhr__reg">—</span>
+                </div>
+                <div class="lhr__airframe">
+                    <span id="md-airframe-code" class="lhr__airframe-code">—</span>
+                    <span id="md-airframe-name" class="lhr__airframe-name"></span>
                 </div>
                 <div class="lhr__route" id="md-route-row">
                     <div class="lhr__endpoint">
@@ -257,6 +264,6 @@
     </div>
 
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="/static/app.js?v=54"></script>
+    <script src="/static/app.js?v=55"></script>
 </body>
 </html>

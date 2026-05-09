@@ -1,0 +1,85 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - heading "Detail screen mock — airframe in top-right at route-scale" [level=1] [ref=e3]
+    - paragraph [ref=e4]:
+      - text: Sized for the 1024×600 Pi 10" display. The airframe block now lives in the top-right corner, with the typecode (e.g.
+      - code [ref=e5]: B738
+      - text: ) at the same monospace weight/size as the IATA route codes, and the full type name (e.g.
+      - code [ref=e6]: BOEING 737-800
+      - text: ) on a second line at city-name scale. Scroll down for both themes.
+  - generic [ref=e7]: Classic theme
+  - generic [ref=e9]:
+    - banner [ref=e10]:
+      - generic [ref=e11]:
+        - generic [ref=e12]: ◆
+        - generic [ref=e13]: UAL445
+        - generic [ref=e14]: 1 NEARBY
+      - generic [ref=e15]:
+        - text: B738
+        - generic [ref=e16]: Boeing 737-800
+    - main [ref=e17]:
+      - generic [ref=e18]: UNITED AIRLINES
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - generic [ref=e21]: CMH
+          - generic [ref=e22]: ►
+          - generic [ref=e23]: IAD
+        - generic [ref=e24]:
+          - generic [ref=e25]: Columbus
+          - generic [ref=e26]: Washington
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - generic [ref=e29]: 6,075
+          - generic [ref=e30]: Alt ft
+        - generic [ref=e31]:
+          - generic [ref=e32]: "292"
+          - generic [ref=e33]: Spd kts
+        - generic [ref=e34]:
+          - generic [ref=e35]: "2.5"
+          - generic [ref=e36]: Dist nm
+        - generic [ref=e37]:
+          - generic [ref=e38]: −64
+          - generic [ref=e39]: VS fpm
+      - generic [ref=e40]:
+        - generic [ref=e41]: ↘ DEPARTING
+        - generic [ref=e42]: NE
+        - generic [ref=e43]: HDG 031
+  - generic [ref=e44]: Modern (Heathrow signage) theme
+  - generic [ref=e46]:
+    - banner [ref=e47]:
+      - generic [ref=e48]: ✈
+      - generic [ref=e49]: Overhead Flight
+      - generic [ref=e50]: 1 nearby
+    - main [ref=e51]:
+      - heading "United Airlines" [level=1] [ref=e52]
+      - generic [ref=e53]:
+        - generic [ref=e54]: UAL445
+        - generic [ref=e55]: N87513
+      - generic [ref=e56]:
+        - text: B738
+        - generic [ref=e57]: Boeing 737-800
+      - generic [ref=e58]:
+        - generic [ref=e59]:
+          - text: CMH
+          - generic [ref=e60]: Columbus
+        - generic [ref=e63]: ✈
+        - generic [ref=e65]:
+          - text: IAD
+          - generic [ref=e66]: Washington
+    - generic [ref=e67]:
+      - generic [ref=e68]:
+        - text: 6,075 ft
+        - generic [ref=e69]: Altitude
+      - generic [ref=e70]:
+        - text: 292 kts
+        - generic [ref=e71]: Speed
+      - generic [ref=e72]:
+        - text: 15,091 ft
+        - generic [ref=e73]: Distance
+      - generic [ref=e74]:
+        - text: −64 fpm
+        - generic [ref=e75]: Vert Spd
+    - generic [ref=e76]:
+      - generic [ref=e77]: ↘ Departing
+      - generic [ref=e78]: NE
+      - generic [ref=e79]: HDG 031

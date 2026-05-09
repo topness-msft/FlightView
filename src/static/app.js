@@ -37,6 +37,8 @@
         flight: document.getElementById("cl-s-flight"),
         count: document.getElementById("cl-s-count"),
         conn: document.getElementById("cl-s-conn"),
+        airframeCode: document.getElementById("cl-s-airframe-code"),
+        airframeName: document.getElementById("cl-s-airframe-name"),
         airline: document.getElementById("cl-airline-flaps"),
         typeFlaps: document.getElementById("cl-type-flaps"),
         routeRow: document.getElementById("cl-route-row"),
@@ -62,7 +64,8 @@
         count: document.getElementById("md-s-count"),
         conn: document.getElementById("md-s-conn"),
         airline: document.getElementById("md-airline"),
-        type: document.getElementById("md-type"),
+        airframeCode: document.getElementById("md-airframe-code"),
+        airframeName: document.getElementById("md-airframe-name"),
         reg: document.getElementById("md-reg"),
         routeRow: document.getElementById("md-route-row"),
         origin: document.getElementById("md-origin"),
@@ -433,14 +436,14 @@
     function updateClassicSingle(a, count) {
         CL.flight.textContent = a.flight_display || a.callsign_raw || "—";
         CL.count.textContent = count + " NEARBY";
+        var clAf = pickAirframe(a);
+        CL.airframeCode.textContent = clAf.code || "—";
+        CL.airframeName.textContent = clAf.name;
         updateFlaps(CL.airline, (a.airline || "UNKNOWN").toUpperCase(), "flaps--xl");
 
-        // Split-flap: flight code + type code (strip manufacturer prefix)
+        // Split-flap shows just the flight code now (airframe is in the header corner)
         var flightCode = a.flight_display || a.callsign_raw || "";
-        var tc = a.aircraft_type || "";
-        var codeParts = tc.split(" ");
-        var typeCode = codeParts.length > 1 ? codeParts.slice(1).join(" ") : tc;
-        updateFlaps(CL.typeFlaps, (flightCode + "  " + typeCode).toUpperCase(), "flaps--xl");
+        updateFlaps(CL.typeFlaps, flightCode.toUpperCase(), "flaps--xl");
 
         // Dot-matrix: route (line 1: IATA codes, line 2: city names)
         if (a.route_origin && a.route_destination) {
@@ -616,6 +619,19 @@
         }
     }
 
+    function pickAirframe(a) {
+        var tc = a.typecode || "";
+        var name = a.aircraft_type || "";
+        if (!tc && name) {
+            var parts = name.split(" ");
+            tc = parts[0] || "";
+        }
+        if (name && tc && name.toUpperCase() === tc.toUpperCase()) {
+            name = "";
+        }
+        return { code: tc.toUpperCase(), name: name.toUpperCase() };
+    }
+
     function padRight(s, n) { while (s.length < n) s = s + " "; return s.substring(0, n); }
 
     // ── Modern Single Renderer (Heathrow signage) ──
@@ -623,7 +639,9 @@
         MD.badge.textContent = a.flight_display || a.callsign_raw || "—";
         MD.count.textContent = count + " nearby";
         MD.airline.textContent = shortAirline(a.airline) || "Unknown";
-        MD.type.textContent = a.aircraft_type || "";
+        var mdAf = pickAirframe(a);
+        MD.airframeCode.textContent = mdAf.code || "—";
+        MD.airframeName.textContent = mdAf.name;
         MD.reg.textContent = a.registration ? "· " + a.registration : "";
 
         if (a.route_origin && a.route_destination) {

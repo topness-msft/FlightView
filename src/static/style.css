@@ -183,7 +183,7 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
 }
 
 .cl-hdr {
-    display:flex; justify-content:space-between; align-items:center;
+    display:flex; justify-content:space-between; align-items:flex-start;
     margin-bottom:10px; flex-shrink:0;
 }
 .cl-hdr__title {
@@ -196,11 +196,25 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     font-family:var(--mono); font-size:0.88rem; font-weight:700;
     color:var(--cl-amber); letter-spacing:1.5px;
 }
-.cl-hdr__right { display:flex; align-items:center; gap:12px; }
+.cl-hdr__right { display:flex; align-items:flex-start; gap:12px; }
 .cl-hdr__count {
     font-family:var(--mono); font-size:0.58rem; font-weight:600;
     color:var(--cl-dk-gray); letter-spacing:2.5px;
 }
+.cl-hdr__airframe { text-align:right; line-height:0.95; }
+.cl-hdr__airframe-code {
+    display:block;
+    font-family:var(--mono); font-size:clamp(2.2rem,5vw,3.6rem);
+    font-weight:800; color:var(--cl-amber);
+    letter-spacing:3px; line-height:1;
+}
+.cl-hdr__airframe-name {
+    display:block; margin-top:4px;
+    font-family:var(--mono); font-size:0.7rem; font-weight:500;
+    color:rgba(240,200,80,0.5);
+    letter-spacing:2px; text-transform:uppercase;
+}
+.cl-hdr__airframe-name:empty { display:none; }
 
 /* 6. CLASSIC: SINGLE-PLANE CARD
    ================================================================ */
@@ -549,14 +563,21 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     margin-left:auto; letter-spacing:1px;
 }
 .lhr__body {
-    flex:1; display:flex; flex-direction:column; padding:12px 28px;
-    gap:8px; justify-content:center;
+    flex:1; display:grid;
+    grid-template-columns: 1fr auto;
+    grid-auto-rows: auto;
+    column-gap:24px; row-gap:8px;
+    padding:12px 28px;
+    align-content:center;
 }
 .lhr__airline {
+    grid-column:1; grid-row:1;
     font-size:clamp(4rem,10vw,6.4rem); font-weight:900; color:#1A1A1A;
     line-height:1; letter-spacing:-1px;
+    min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 .lhr__meta {
+    grid-column:1; grid-row:2;
     display:flex; align-items:baseline; gap:10px;
     margin-bottom:6px;
 }
@@ -572,6 +593,26 @@ body { font-family:var(--ff); -webkit-font-smoothing:antialiased; background:#00
     font-family:var(--mono); font-size:0.7rem; font-weight:400;
     color:rgba(0,0,0,0.3);
 }
+.lhr__airframe {
+    grid-column:2; grid-row:1 / span 2;
+    align-self:start; text-align:right; line-height:0.95;
+    min-width:0;
+}
+.lhr__airframe-code {
+    display:block;
+    font-family:var(--mono); font-size:clamp(3.2rem,7vw,5rem);
+    font-weight:900; color:#1A1A1A;
+    letter-spacing:3px; line-height:1;
+}
+.lhr__airframe-name {
+    display:block; margin-top:6px;
+    font-family:var(--mono); font-size:clamp(1.05rem,2.2vw,1.5rem);
+    font-weight:600; color:rgba(0,0,0,0.45);
+    letter-spacing:2px; text-transform:uppercase;
+}
+.lhr__airframe-name:empty { display:none; }
+.lhr__route { grid-column:1 / -1; }
+.lhr__stats { grid-column:1 / -1; }
 .lhr__route {
     display:flex; align-items:center; gap:14px;
     padding:10px 0; border-top:2px solid rgba(0,0,0,0.06);

@@ -72,7 +72,7 @@ class AircraftStateManager:
                 prev = self._active[icao]
                 for field in (
                     "route_origin", "route_destination", "route_display",
-                    "origin_city", "destination_city",
+                    "origin_city", "destination_city", "typecode",
                 ):
                     if prev.get(field) and not ac.get(field):
                         ac[field] = prev[field]
@@ -145,6 +145,7 @@ class AircraftStateManager:
                 "airline": ac.get("airline", ""),
                 "flight_display": ac.get("flight_display", ""),
                 "aircraft_type": ac.get("aircraft_type", ""),
+                "typecode": ac.get("typecode", ""),
                 "distance_ft": ac.get("distance_ft"),
                 "altitude_ft": ac.get("altitude_ft"),
                 "velocity_kts": ac.get("velocity_kts"),
@@ -192,9 +193,7 @@ class AircraftStateManager:
 
         # Resolve aircraft type from icao_info typecode
         typecode = (icao_info or {}).get("typecode", "")
-        aircraft_type = get_aircraft_type(typecode) if typecode else ""
-
-        # Route fields
+        aircraft_type = get_aircraft_type(typecode) if typecode else ""        # Route fields
         route_origin = (route_info or {}).get("origin", "")
         route_destination = (route_info or {}).get("destination", "")
         route_display = ""
@@ -220,6 +219,7 @@ class AircraftStateManager:
             "flight_number": callsign_info.get("flight_number", ""),
             "flight_display": callsign_info.get("display", ""),
             "aircraft_type": aircraft_type,
+            "typecode": typecode,
             "registration": (icao_info or {}).get("registration", ""),
             "route_origin": route_origin,
             "route_destination": route_destination,

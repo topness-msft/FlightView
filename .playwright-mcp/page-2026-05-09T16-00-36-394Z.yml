@@ -1,0 +1,20 @@
+- generic [active] [ref=e1]:
+  - generic:
+    - generic: ⚠
+    - generic:
+      - generic: ADS-B receiver offline
+      - generic: Check SDR connection
+  - navigation:
+    - button "CLASSIC" [ref=e2] [cursor=pointer]
+    - button "⚙" [ref=e3] [cursor=pointer]
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic [ref=e6]: FLIGHTVIEW
+      - generic [ref=e8]: 0 AIRCRAFT
+    - generic [ref=e10]:
+      - generic [ref=e11]:
+        - generic: "N"
+        - generic: E
+        - generic: S
+        - generic: W
+      - generic [ref=e14]: SCANNING
