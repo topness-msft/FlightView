@@ -1059,13 +1059,35 @@
 
     var socket = io({ reconnection: true, reconnectionDelay: 1000 });
 
+    var serverVersion = null;
+    var disconnectedAt = null;
+
     socket.on("connect", function () {
         setConn(connEls, true);
         socket.emit("request_update");
+        // If we were disconnected for >3s (typical of a deploy/restart),
+        // reload the page so we pick up any new HTML/JS/CSS the Pi now serves.
+        if (disconnectedAt && Date.now() - disconnectedAt > 3000) {
+            location.reload();
+            return;
+        }
+        disconnectedAt = null;
     });
-    socket.on("disconnect", function () { setConn(connEls, false); });
+    socket.on("disconnect", function () {
+        setConn(connEls, false);
+        disconnectedAt = Date.now();
+    });
 
     socket.on("aircraft_update", function (state) {
+        // Reload immediately on detected version change (belt-and-suspenders)
+        if (state && state.server_version) {
+            if (serverVersion === null) {
+                serverVersion = state.server_version;
+            } else if (state.server_version !== serverVersion) {
+                location.reload();
+                return;
+            }
+        }
         latestState = state;
         updateHealthBanner(state.health);
         resolveScreen();

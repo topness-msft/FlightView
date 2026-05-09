@@ -43,6 +43,25 @@ adsbx = ADSBXClient(api_key=config.ADSBX_API_KEY)
 route_client = AdsbLolClient()
 mock_source = MockDataSource(config.HOME_LAT, config.HOME_LON)
 
+# Server version: short git SHA at startup. Sent with every state broadcast so
+# the frontend can detect a deploy and auto-reload to pick up new HTML/JS/CSS.
+def _read_server_version() -> str:
+    import subprocess
+    repo_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=repo_dir, capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return ""
+
+
+SERVER_VERSION = _read_server_version()
+
 # Track which icao24s we've already fetched routes for
 _known_icaos: set[str] = set()
 # Track which callsigns have an in-flight or recent route fetch (prevents
@@ -68,6 +87,8 @@ def _prefetch_route(icao24: str, callsign: str) -> None:
         state_mgr.enrich_active(icao24, enrichment)
         state = state_mgr.get_display_state()
         state["health"] = dict(_health)
+        if SERVER_VERSION:
+            state["server_version"] = SERVER_VERSION
         socketio.emit("aircraft_update", state)
     except Exception:
         logger.exception("prefetch_route failed for %s", callsign)
@@ -117,6 +138,8 @@ def poll_aircraft():
                 # Broadcast error state so frontend shows the alert
                 error_state = state_mgr.get_display_state()
                 error_state["health"] = dict(_health)
+                if SERVER_VERSION:
+                    error_state["server_version"] = SERVER_VERSION
                 socketio.emit("aircraft_update", error_state)
                 time.sleep(config.POLL_INTERVAL_SEC)
                 continue
@@ -161,6 +184,8 @@ def poll_aircraft():
 
             # 5. Attach health state and broadcast
             state["health"] = dict(_health)
+            if SERVER_VERSION:
+                state["server_version"] = SERVER_VERSION
             socketio.emit("aircraft_update", state)
 
             # 6. Pre-warm route enrichment for any new callsigns (background)
@@ -210,7 +235,10 @@ def add_no_cache_headers(response):
 def handle_connect():
     """Handle new WebSocket client connections."""
     logger.info("Client connected")
-    emit("aircraft_update", state_mgr.get_display_state())
+    state = state_mgr.get_display_state()
+    if SERVER_VERSION:
+        state["server_version"] = SERVER_VERSION
+    emit("aircraft_update", state)
 
 
 @socketio.on("disconnect")
@@ -222,7 +250,10 @@ def handle_disconnect():
 @socketio.on("request_update")
 def handle_request_update():
     """Handle manual update requests from the client."""
-    emit("aircraft_update", state_mgr.get_display_state())
+    state = state_mgr.get_display_state()
+    if SERVER_VERSION:
+        state["server_version"] = SERVER_VERSION
+    emit("aircraft_update", state)
 
 
 @socketio.on("pin_flight")
@@ -253,6 +284,8 @@ def handle_pin_flight(data):
     # Emit updated state
     state = state_mgr.get_display_state()
     state["health"] = dict(_health)
+    if SERVER_VERSION:
+        state["server_version"] = SERVER_VERSION
     emit("aircraft_update", state)
 
 
