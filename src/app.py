@@ -45,6 +45,32 @@ mock_source = MockDataSource(config.HOME_LAT, config.HOME_LON)
 
 # Track which icao24s we've already fetched routes for
 _known_icaos: set[str] = set()
+# Track which callsigns have an in-flight or recent route fetch (prevents
+# re-firing every poll for callsigns that returned no route).
+_routed_callsigns: set[str] = set()
+
+
+def _prefetch_route(icao24: str, callsign: str) -> None:
+    """Background task: look up route, merge into state, broadcast."""
+    if config.MOCK_MODE:
+        return
+    try:
+        route = route_client.get_route(callsign)
+        if not route or not route.get("origin"):
+            return
+        enrichment = {
+            "route_origin": route["origin"],
+            "route_destination": route["destination"],
+            "route_display": f"{route['origin']} → {route['destination']}",
+            "origin_city": route.get("origin_name", ""),
+            "destination_city": route.get("destination_name", ""),
+        }
+        state_mgr.enrich_active(icao24, enrichment)
+        state = state_mgr.get_display_state()
+        state["health"] = dict(_health)
+        socketio.emit("aircraft_update", state)
+    except Exception:
+        logger.exception("prefetch_route failed for %s", callsign)
 
 # --- Health state (pushed to frontend with each update) ---
 _health: dict = {
@@ -136,6 +162,24 @@ def poll_aircraft():
             # 5. Attach health state and broadcast
             state["health"] = dict(_health)
             socketio.emit("aircraft_update", state)
+
+            # 6. Pre-warm route enrichment for any new callsigns (background)
+            #    adsb.lol is free and fast; doing this proactively eliminates the
+            #    1–2s lag when the user taps a flight or it auto-promotes to
+            #    the detail view.
+            for ac in state.get("aircraft_list", []):
+                callsign = (ac.get("callsign_raw") or ac.get("callsign") or "").strip()
+                icao24 = (ac.get("icao24") or "").strip()
+                if not callsign or not icao24:
+                    continue
+                if ac.get("route_origin"):
+                    continue  # already enriched
+                if callsign in _routed_callsigns:
+                    continue  # in-flight or cached miss this cycle
+                if len(_routed_callsigns) > 500:
+                    _routed_callsigns.clear()
+                _routed_callsigns.add(callsign)
+                socketio.start_background_task(_prefetch_route, icao24, callsign)
 
             if state.get("events"):
                 logger.info("Events: %s", state["events"])
