@@ -23,7 +23,7 @@ class AdsbLolClient:
 
     CACHE_TTL_SEC = 600       # 10 min cache for successful lookups
     NEG_CACHE_TTL_SEC = 600   # 10 min cache for definitive no-route responses
-    REQUEST_TIMEOUT_SEC = 3   # short timeout so callers don't block the poll loop
+    REQUEST_TIMEOUT_SEC = 6   # tolerant of slow upstream; async prefetch so it doesn't block
 
     def __init__(self) -> None:
         self.enabled = True
