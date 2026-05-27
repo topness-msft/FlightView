@@ -22,8 +22,17 @@ import math
 logger = logging.getLogger(__name__)
 
 EARTH_RADIUS_NM = 3440.065  # nautical miles
-TAKEOFF_ALT_THRESHOLD_M = 200  # high-confidence takeoff = first point at/below this
-AIRPORT_MATCH_NM = 5.0          # max distance for takeoff-airport match
+# First track point altitude threshold. We treat any first point at/below
+# this as a reliable proxy for origin. Strict thresholds (e.g. 200m) miss
+# the common case where OpenSky picked up the plane during the climb-out,
+# not on the runway itself. 1500m (~5,000 ft) covers most takeoffs +
+# initial climb without picking up cruise-altitude track starts.
+TAKEOFF_ALT_THRESHOLD_M = 1500
+# Match radius from track point to a canonical airport. Larger than the
+# airport itself to account for tracks that start a few miles into the
+# climb. Still tight enough that 200+nm-apart airports (e.g. MCI vs BNA)
+# never falsely match.
+AIRPORT_MATCH_NM = 15.0
 
 
 def _haversine_nm(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -35,17 +44,20 @@ def _haversine_nm(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 
 def find_takeoff_point(path) -> tuple[float, float] | None:
-    """Identify the takeoff point in an OpenSky track path.
+    """Identify the approximate origin coordinates from an OpenSky track.
 
     Track path format: list of [time, lat, lon, alt_m, hdg, on_ground].
-    Returns (lat, lon) only when the FIRST point is at/below
-    TAKEOFF_ALT_THRESHOLD_M — i.e. OpenSky captured the aircraft from the
-    ground up, giving us a high-confidence takeoff coord.
+    Returns (lat, lon) of the FIRST point when its altitude is at/below
+    TAKEOFF_ALT_THRESHOLD_M — interpreted as "OpenSky picked the plane up
+    on or shortly after takeoff", giving us a coordinate that's a few
+    nautical miles from the origin airport at worst.
 
     Returns None when the first point is high-altitude (track started
-    mid-flight, common for transoceanic flights), or when altitude is
-    missing.  Treating "no confident takeoff" as "unknown" (vs. "stale
-    schedule") avoids falsely suppressing valid canonical routes.
+    mid-cruise, common for transoceanic flights when OpenSky lacks
+    over-water coverage) or when altitude is missing.  Treating "no
+    confident origin signal" as "unknown" — instead of "stale schedule"
+    — avoids falsely suppressing valid canonical routes for flights
+    OpenSky didn't see lifting off.
     """
     if not path:
         return None

@@ -42,12 +42,21 @@ class TestFindTakeoffPoint:
         assert pt == (35.87, -78.79)
 
     def test_high_first_point_is_unknown(self):
-        # Path picked up mid-flight at cruise — no confident takeoff
+        # Path picked up mid-flight at cruise — no confident origin signal
         path = _track_path(
             (1000, 40.0, -75.0, 10000, 90, False),
             (1100, 40.5, -74.0, 10500, 90, False),
         )
         assert find_takeoff_point(path) is None
+
+    def test_climbing_aircraft_below_threshold_counts(self):
+        # OpenSky often picks up planes during climb-out at a few thousand
+        # feet — still a strong origin signal.
+        path = _track_path(
+            (1000, 36.09, -86.69, 304, 194, False),  # near BNA, climbing
+            (1200, 36.20, -86.50, 1500, 30, False),
+        )
+        assert find_takeoff_point(path) == (36.09, -86.69)
 
     def test_none_alt_in_first_point_is_unknown(self):
         path = _track_path(
@@ -62,13 +71,13 @@ class TestFindTakeoffPoint:
     def test_none_path_returns_none(self):
         assert find_takeoff_point(None) is None
 
-    def test_threshold_boundary_200m(self):
-        # Exactly at 200m should count as takeoff
-        path = _track_path((1000, 40.0, -75.0, 200, 90, False))
+    def test_threshold_boundary(self):
+        # Exactly at TAKEOFF_ALT_THRESHOLD_M should count
+        path = _track_path((1000, 40.0, -75.0, 1500, 90, False))
         assert find_takeoff_point(path) == (40.0, -75.0)
 
     def test_just_above_threshold_is_unknown(self):
-        path = _track_path((1000, 40.0, -75.0, 250, 90, False))
+        path = _track_path((1000, 40.0, -75.0, 1600, 90, False))
         assert find_takeoff_point(path) is None
 
 
@@ -140,20 +149,28 @@ class TestReconcileRoute:
         assert result["destination"] == ""
         assert result["confidence"] == "suppress"
 
-    def test_track_threshold_5nm_match(self):
-        # Aircraft slightly off airport centre — within 5nm should still match
+    def test_track_threshold_match(self):
+        # Aircraft a few nm from airport centre (typical for climb-out
+        # captures) — within match radius.
         adsb = {"airports": [IAD, DFW]}
-        # ~3nm NE of IAD
-        takeoff = (38.99, -77.41)
+        # ~10nm SW of IAD
+        takeoff = (38.81, -77.58)
         result = reconcile_route(adsb, takeoff)
         assert result["origin"] == "IAD"
         assert result["destination"] == "DFW"
         assert result["confidence"] == "high"
 
     def test_track_far_outside_threshold_suppresses(self):
-        # Takeoff 50nm from any adsb airport
-        adsb = {"airports": [IAD, DFW]}
-        takeoff = (40.5, -75.0)  # near Philadelphia, not in list
+        # Real-world case: SWA594 — adsb says MCI-STL, OpenSky takeoff
+        # at BNA (Nashville).  BNA is hundreds of nm from MCI/STL.
+        adsb = {"airports": [
+            {"icao": "KMCI", "iata": "MCI", "name": "Kansas City",
+             "location": "Kansas City", "lat": 39.2976, "lon": -94.7139},
+            {"icao": "KSTL", "iata": "STL", "name": "St Louis",
+             "location": "St Louis", "lat": 38.7487, "lon": -90.3700},
+        ]}
+        # First track point near BNA
+        takeoff = (36.09, -86.69)
         result = reconcile_route(adsb, takeoff)
         assert result["confidence"] == "suppress"
 
