@@ -482,6 +482,53 @@ def get_route():
         return jsonify({"error": str(exc)}), 500
 
 
+@app.route("/api/reconcile", methods=["GET"])
+def diagnostic_reconcile():
+    """Diagnostic: run the full reconcile pipeline synchronously."""
+    callsign = request.args.get("callsign", "").strip()
+    icao24 = request.args.get("icao24", "").strip().lower()
+    if not callsign or not icao24:
+        return jsonify({"error": "callsign and icao24 required"}), 400
+    try:
+        t0 = time.time()
+        adsb = route_client.get_route(callsign)
+        t1 = time.time()
+        track = opensky.get_track(icao24)
+        t2 = time.time()
+        takeoff = find_takeoff_point(track)
+        result = reconcile_route(adsb, takeoff)
+        return jsonify({
+            "callsign": callsign,
+            "icao24": icao24,
+            "adsb_route": adsb,
+            "track_first_point": track[0] if track else None,
+            "track_len": len(track) if track else 0,
+            "takeoff": takeoff,
+            "reconcile": result,
+            "timing": {"adsb_ms": int((t1-t0)*1000), "track_ms": int((t2-t1)*1000)},
+        })
+    except Exception as exc:
+        logger.exception("diagnostic_reconcile failed")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/state", methods=["GET"])
+def diagnostic_state():
+    """Diagnostic: dump current state_manager active aircraft."""
+    items = []
+    for icao, ac in state_mgr._active.items():
+        items.append({
+            "icao24": icao,
+            "callsign_raw": ac.get("callsign_raw"),
+            "altitude_ft": ac.get("altitude_ft"),
+            "route_origin": ac.get("route_origin"),
+            "route_destination": ac.get("route_destination"),
+            "route_display": ac.get("route_display"),
+            "route_checked_at": ac.get("route_checked_at"),
+        })
+    return jsonify({"active": items, "inflight": list(_route_inflight)})
+
+
 @app.route("/api/update", methods=["POST"])
 def do_update():
     """Git pull (or force-reset to origin/main) and restart the FlightView service.
