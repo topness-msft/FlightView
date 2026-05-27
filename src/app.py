@@ -10,6 +10,8 @@ import time
 
 import os
 
+from concurrent.futures import ThreadPoolExecutor
+
 from flask import Flask, send_from_directory, request, jsonify
 from flask_socketio import SocketIO, emit
 
@@ -62,17 +64,33 @@ def _read_server_version() -> str:
 
 SERVER_VERSION = _read_server_version()
 
-# Track which icao24s we've already fetched routes for
-_known_icaos: set[str] = set()
-# Track which callsigns have an in-flight or recent route fetch (prevents
-# re-firing every poll for callsigns that returned no route).
-_routed_callsigns: set[str] = set()
+# --- Route enrichment prefetch (async fire-and-forget) ---
+# When a new callsign appears in the radar list, we schedule an adsb.lol
+# lookup on a small thread pool. The worker writes the route fields
+# directly into state_mgr._active. The next poll cycle's broadcast then
+# carries forward those fields automatically. Aircraft typically spend
+# 30-60s in the wider radar zone before promoting to the detail pane,
+# so the route is virtually always in place by then.
+ROUTE_PREFETCH_MAX_WORKERS = 5
+_route_executor = ThreadPoolExecutor(
+    max_workers=ROUTE_PREFETCH_MAX_WORKERS,
+    thread_name_prefix="route-fetch",
+)
+_route_inflight_lock = threading.Lock()
+_route_inflight: set[str] = set()  # callsigns currently being fetched
 
 
-def _prefetch_route(icao24: str, callsign: str) -> None:
-    """Background task: look up route, merge into state, broadcast."""
-    if config.MOCK_MODE:
-        return
+def _normalize_callsign(cs: str) -> str:
+    return (cs or "").strip().upper()
+
+
+def _prefetch_route_async(icao24: str, callsign: str) -> None:
+    """Worker-thread function: fetch the route and write it to state.
+
+    Verifies the airframe is still active AND still advertising the same
+    callsign before applying the enrichment, so we never write a stale
+    route onto an aircraft that switched flights mid-track.
+    """
     try:
         route = route_client.get_route(callsign)
         if not route or not route.get("origin"):
@@ -84,14 +102,42 @@ def _prefetch_route(icao24: str, callsign: str) -> None:
             "origin_city": route.get("origin_name", ""),
             "destination_city": route.get("destination_name", ""),
         }
-        state_mgr.enrich_active(icao24, enrichment)
-        state = state_mgr.get_display_state()
-        state["health"] = dict(_health)
-        if SERVER_VERSION:
-            state["server_version"] = SERVER_VERSION
-        socketio.emit("aircraft_update", state)
+        state_mgr.enrich_active(icao24, enrichment, expected_callsign=callsign)
     except Exception:
-        logger.exception("prefetch_route failed for %s", callsign)
+        logger.exception("prefetch_route_async failed for %s", callsign)
+    finally:
+        with _route_inflight_lock:
+            _route_inflight.discard(callsign)
+
+
+def _schedule_route_prefetches(aircraft_list: list[dict]) -> None:
+    """Fire-and-forget: queue route lookups for any aircraft in the radar
+    list that don't yet have route info.
+
+    Runs at the END of each poll cycle, AFTER the state has already been
+    broadcast — so the radar dot / list row appears with zero added
+    latency. Workers populate state_mgr._active in the background, and
+    the next poll's carry-forward picks them up.
+    """
+    if config.MOCK_MODE:
+        return
+
+    with _route_inflight_lock:
+        to_submit: list[tuple[str, str]] = []
+        for ac in aircraft_list:
+            icao24 = (ac.get("icao24") or "").strip()
+            callsign = _normalize_callsign(ac.get("callsign_raw") or ac.get("callsign"))
+            if not icao24 or not callsign:
+                continue
+            if ac.get("route_origin"):
+                continue  # already enriched
+            if callsign in _route_inflight:
+                continue  # already being fetched
+            _route_inflight.add(callsign)
+            to_submit.append((icao24, callsign))
+
+    for icao24, callsign in to_submit:
+        _route_executor.submit(_prefetch_route_async, icao24, callsign)
 
 # --- Health state (pushed to frontend with each update) ---
 _health: dict = {
@@ -162,7 +208,7 @@ def poll_aircraft():
                 callsign_info = decode_callsign(callsign)
                 icao_info = icao_db.lookup(icao24)
 
-                # Route enrichment: use mock data fields only (live routes via FlightAware in step 5)
+                # Route enrichment: use mock data fields only (live routes via adsb.lol below)
                 route_info = None
                 if config.MOCK_MODE and ac.get("origin"):
                     route_info = {"origin": ac["origin"], "destination": ac["destination"]}
@@ -175,39 +221,32 @@ def poll_aircraft():
                     state_mgr.enrich_aircraft(ac, callsign_info, icao_info, route_info)
                 )
 
-            # 4. Update state manager and broadcast
+            # 4. Update state manager
             state = state_mgr.update(
                 enriched,
                 near_radius_ft=config.RADIUS_LIMIT_FT,
                 near_altitude_ft=config.ALTITUDE_LIMIT_FT,
             )
 
-            # 5. Attach health state and broadcast
+            # 5. Broadcast IMMEDIATELY so aircraft appear on the radar and
+            #    list with zero added latency. Cached routes (from prior
+            #    polls' async prefetches) are already in state via the
+            #    carry-forward logic in state_manager.update().
             state["health"] = dict(_health)
             if SERVER_VERSION:
                 state["server_version"] = SERVER_VERSION
             socketio.emit("aircraft_update", state)
 
-            # 6. Pre-warm route enrichment for any new callsigns (background)
-            #    adsb.lol is free and fast; doing this proactively eliminates the
-            #    1–2s lag when the user taps a flight or it auto-promotes to
-            #    the detail view.
-            for ac in state.get("aircraft_list", []):
-                callsign = (ac.get("callsign_raw") or ac.get("callsign") or "").strip()
-                icao24 = (ac.get("icao24") or "").strip()
-                if not callsign or not icao24:
-                    continue
-                if ac.get("route_origin"):
-                    continue  # already enriched
-                if callsign in _routed_callsigns:
-                    continue  # in-flight or cached miss this cycle
-                if len(_routed_callsigns) > 500:
-                    _routed_callsigns.clear()
-                _routed_callsigns.add(callsign)
-                socketio.start_background_task(_prefetch_route, icao24, callsign)
-
             if state.get("events"):
                 logger.info("Events: %s", state["events"])
+
+            # 6. Fire-and-forget: schedule async route lookups for any new
+            #    callsigns. Workers write back to state_mgr._active; the
+            #    next poll's broadcast carries the route forward. Aircraft
+            #    typically spend 30-60s in the radar zone before promoting
+            #    to the detail pane, so routes are virtually always in
+            #    place by then.
+            _schedule_route_prefetches(state.get("aircraft_list", []))
 
         except Exception:
             logger.exception("Error in poll_aircraft loop")
