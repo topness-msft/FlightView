@@ -25,6 +25,7 @@ from adsbx_client import ADSBXClient
 from adsblol_client import AdsbLolClient
 from state_manager import AircraftStateManager
 from mock_data import MockDataSource
+from route_reconciler import find_takeoff_point, reconcile_route
 
 logging.basicConfig(
     level=logging.INFO,
@@ -72,6 +73,10 @@ SERVER_VERSION = _read_server_version()
 # 30-60s in the wider radar zone before promoting to the detail pane,
 # so the route is virtually always in place by then.
 ROUTE_PREFETCH_MAX_WORKERS = 5
+# After a successful or suppressed reconcile, wait this long before retrying.
+# Suppressed entries (stale adsb data) shouldn't be polled every cycle, but
+# also shouldn't be permanently blocked — schedules update over time.
+ROUTE_RECHECK_INTERVAL_SEC = 300
 _route_executor = ThreadPoolExecutor(
     max_workers=ROUTE_PREFETCH_MAX_WORKERS,
     thread_name_prefix="route-fetch",
@@ -85,23 +90,42 @@ def _normalize_callsign(cs: str) -> str:
 
 
 def _prefetch_route_async(icao24: str, callsign: str) -> None:
-    """Worker-thread function: fetch the route and write it to state.
+    """Worker-thread function: fetch + reconcile route, then write to state.
 
-    Verifies the airframe is still active AND still advertising the same
-    callsign before applying the enrichment, so we never write a stale
-    route onto an aircraft that switched flights mid-track.
+    Pulls the canonical route from adsb.lol and the LIVE flight track from
+    OpenSky.  The reconciler decides whether to trust the canonical route,
+    pick a specific leg of a multi-leg route, or suppress stale data.  In
+    every case we set ``route_checked_at`` so the scheduler doesn't re-fetch
+    immediately even when the result was suppression.
     """
     try:
-        route = route_client.get_route(callsign)
-        if not route or not route.get("origin"):
-            return
-        enrichment = {
-            "route_origin": route["origin"],
-            "route_destination": route["destination"],
-            "route_display": f"{route['origin']} → {route['destination']}",
-            "origin_city": route.get("origin_name", ""),
-            "destination_city": route.get("destination_name", ""),
-        }
+        adsb_route = route_client.get_route(callsign)
+        track_path = opensky.get_track(icao24)
+        takeoff = find_takeoff_point(track_path)
+
+        result = reconcile_route(adsb_route, takeoff)
+        logger.info(
+            "route reconcile %s/%s: %s→%s conf=%s (%s)",
+            icao24, callsign,
+            result.get("origin") or "-",
+            result.get("destination") or "-",
+            result.get("confidence"),
+            result.get("reason"),
+        )
+
+        enrichment: dict = {"route_checked_at": time.time()}
+        if result.get("origin"):
+            enrichment["route_origin"] = result["origin"]
+            enrichment["route_destination"] = result.get("destination", "")
+            if result.get("destination"):
+                enrichment["route_display"] = f"{result['origin']} → {result['destination']}"
+            else:
+                # Known origin, unknown destination (e.g. matched terminal
+                # airport of a multi-leg canonical route).  Show the partial.
+                enrichment["route_display"] = f"{result['origin']} → ?"
+            enrichment["origin_city"] = result.get("origin_name", "")
+            enrichment["destination_city"] = result.get("destination_name", "")
+
         state_mgr.enrich_active(icao24, enrichment, expected_callsign=callsign)
     except Exception:
         logger.exception("prefetch_route_async failed for %s", callsign)
@@ -124,6 +148,7 @@ def _schedule_route_prefetches(aircraft_list: list[dict]) -> None:
 
     with _route_inflight_lock:
         to_submit: list[tuple[str, str]] = []
+        now = time.time()
         for ac in aircraft_list:
             icao24 = (ac.get("icao24") or "").strip()
             callsign = _normalize_callsign(ac.get("callsign_raw") or ac.get("callsign"))
@@ -131,6 +156,12 @@ def _schedule_route_prefetches(aircraft_list: list[dict]) -> None:
                 continue
             if ac.get("route_origin"):
                 continue  # already enriched
+            # Skip aircraft we recently checked and suppressed (no useful
+            # data available right now); they'll be retried after the
+            # recheck interval.
+            checked_at = ac.get("route_checked_at")
+            if checked_at and (now - float(checked_at)) < ROUTE_RECHECK_INTERVAL_SEC:
+                continue
             if callsign in _route_inflight:
                 continue  # already being fetched
             _route_inflight.add(callsign)

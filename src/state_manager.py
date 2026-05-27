@@ -93,7 +93,7 @@ class AircraftStateManager:
                 )
                 route_fields = (
                     "route_origin", "route_destination", "route_display",
-                    "origin_city", "destination_city",
+                    "origin_city", "destination_city", "route_checked_at",
                 )
                 if not callsign_changed:
                     for field in route_fields:
@@ -306,8 +306,8 @@ class AircraftStateManager:
                     return
             # Always set route/city fields
             for field in ("route_origin", "route_destination", "route_display",
-                           "origin_city", "destination_city"):
-                if enrichment.get(field):
+                           "origin_city", "destination_city", "route_checked_at"):
+                if enrichment.get(field) is not None and enrichment.get(field) != "":
                     ac[field] = enrichment[field]
             # Backfill airline from FA operator if local decode was Unknown
             if ac.get("airline") in ("", "Unknown") and enrichment.get("fa_operator"):

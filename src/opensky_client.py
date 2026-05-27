@@ -7,6 +7,7 @@ Uses OAuth2 Client Credentials Flow when credentials are configured.
 
 import logging
 import math
+import threading
 import time
 
 import requests
@@ -21,10 +22,17 @@ MPS_TO_KNOTS = 1.94384
 MPS_TO_FPM = METERS_TO_FEET * 60  # m/s -> ft/min
 
 OPENSKY_API_URL = "https://opensky-network.org/api/states/all"
+OPENSKY_TRACKS_URL = "https://opensky-network.org/api/tracks/all"
 OPENSKY_TOKEN_URL = "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token"
 
 # Approximate feet per degree of latitude
 FEET_PER_DEG_LAT = 364_000
+
+# Track cache: takeoff point per airframe is stable for the duration of a
+# flight; a short TTL means cross-flight changes naturally expire.
+TRACK_CACHE_TTL_SEC = 600
+TRACK_NEG_CACHE_TTL_SEC = 300  # shorter so a missed-on-takeoff plane gets retried
+TRACK_REQUEST_TIMEOUT_SEC = 6
 
 
 def build_bounding_box(lat: float, lon: float, radius_ft: float) -> tuple[float, float, float, float]:
@@ -61,6 +69,10 @@ class OpenSkyClient:
         )
         self._access_token = None
         self._token_expires_at = 0
+        # Per-airframe live track cache (icao24 -> {timestamp, path}).
+        self._track_cache: dict[str, dict] = {}
+        self._track_neg_cache: dict[str, float] = {}
+        self._track_lock = threading.Lock()
 
     def _get_access_token(self) -> str | None:
         """Obtain or refresh an OAuth2 access token."""
@@ -165,3 +177,84 @@ class OpenSkyClient:
 
         logger.info("Fetched %d airborne aircraft from OpenSky", len(aircraft_list))
         return aircraft_list
+
+    def get_track(self, icao24: str) -> list | None:
+        """Return the LIVE flight track for an airframe (most recent flight).
+
+        Calls OpenSky's /tracks/all?icao24=X&time=0 endpoint.  Each path point
+        is [time, lat, lon, baroAltitude_m, trueTrack, onGround].  The first
+        point of the path is typically the takeoff coord (alt=0 on the runway)
+        when OpenSky captured the aircraft from the ground up.
+
+        Caching:
+          - successes cached TRACK_CACHE_TTL_SEC (10 min) — takeoff coord is
+            stable for the duration of a flight.
+          - 404s (no flight) cached TRACK_NEG_CACHE_TTL_SEC (5 min) so a plane
+            that just appeared but isn't yet indexed gets a retry soon.
+          - transient errors NOT negative-cached.
+
+        Returns:
+            list of track points, or None on failure / no track available.
+        """
+        if not icao24:
+            return None
+        icao24 = icao24.strip().lower()
+        now = time.time()
+
+        with self._track_lock:
+            cached = self._track_cache.get(icao24)
+            if cached and (now - cached["timestamp"]) < TRACK_CACHE_TTL_SEC:
+                return cached["path"]
+            neg_ts = self._track_neg_cache.get(icao24)
+            if neg_ts and (now - neg_ts) < TRACK_NEG_CACHE_TTL_SEC:
+                return None
+            # Garbage-collect oversized caches
+            if len(self._track_cache) > 200:
+                self._track_cache = {
+                    k: v for k, v in self._track_cache.items()
+                    if (now - v["timestamp"]) < TRACK_CACHE_TTL_SEC
+                }
+            if len(self._track_neg_cache) > 200:
+                self._track_neg_cache = {
+                    k: v for k, v in self._track_neg_cache.items()
+                    if (now - v) < TRACK_NEG_CACHE_TTL_SEC
+                }
+
+        headers = {}
+        token = self._get_access_token()
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+        try:
+            resp = requests.get(
+                OPENSKY_TRACKS_URL,
+                params={"icao24": icao24, "time": 0},
+                timeout=TRACK_REQUEST_TIMEOUT_SEC,
+                headers=headers,
+            )
+            if resp.status_code == 404:
+                with self._track_lock:
+                    self._track_neg_cache[icao24] = now
+                return None
+            resp.raise_for_status()
+            data = resp.json()
+        except requests.RequestException as exc:
+            logger.warning("OpenSky tracks/all request failed for %s: %s", icao24, exc)
+            return None
+        except ValueError:
+            logger.warning("OpenSky tracks/all returned invalid JSON for %s", icao24)
+            return None
+
+        path = (data or {}).get("path") or []
+        if not path:
+            with self._track_lock:
+                self._track_neg_cache[icao24] = now
+            return None
+
+        with self._track_lock:
+            self._track_cache[icao24] = {"timestamp": now, "path": path}
+            self._track_neg_cache.pop(icao24, None)
+
+        logger.debug("OpenSky track for %s: %d points, first=%s", icao24, len(path), path[0])
+        return path
+

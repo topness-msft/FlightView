@@ -88,11 +88,29 @@ class AdsbLolClient:
             origin_ap = airports[0] or {}
             dest_ap = airports[-1] or {}
 
+            # Normalise the airport list so callers (reconciler, tests) don't
+            # need to know the raw upstream shape.  Each entry includes lat/lon
+            # so the reconciler can match the live takeoff coords back to a
+            # canonical airport.
+            normalised_airports = []
+            for ap in airports:
+                if not isinstance(ap, dict):
+                    continue
+                normalised_airports.append({
+                    "iata": (ap.get("iata") or "").strip(),
+                    "icao": (ap.get("icao") or "").strip(),
+                    "name": (ap.get("name") or "").strip(),
+                    "location": (ap.get("location") or "").strip(),
+                    "lat": ap.get("lat"),
+                    "lon": ap.get("lon"),
+                })
+
             route_data = {
                 "origin": (origin_ap.get("iata") or origin_ap.get("icao") or "").strip(),
                 "destination": (dest_ap.get("iata") or dest_ap.get("icao") or "").strip(),
                 "origin_name": (origin_ap.get("location") or origin_ap.get("name") or "").strip(),
                 "destination_name": (dest_ap.get("location") or dest_ap.get("name") or "").strip(),
+                "airports": normalised_airports,
                 "operator": "",
                 "aircraft_type": "",
             }
