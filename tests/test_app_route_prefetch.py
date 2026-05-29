@@ -1,0 +1,49 @@
+"""Tests for async route prefetch behavior."""
+
+import os
+import sys
+from unittest.mock import Mock
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
+import app as flight_app  # noqa: E402
+from state_manager import AircraftStateManager  # noqa: E402
+
+
+def _active_aircraft():
+    return {
+        "icao24": "a1b2c3",
+        "callsign": "SWA1234",
+        "callsign_raw": "SWA1234",
+        "distance_ft": 1000,
+        "altitude_ft": 2000,
+        "bearing": 0,
+        "compass": "N",
+        "airline": "Southwest Airlines",
+        "flight_display": "WN 1234",
+    }
+
+
+def test_route_prefetch_emits_updated_state_immediately(monkeypatch):
+    mgr = AircraftStateManager()
+    mgr.update([_active_aircraft()])
+    monkeypatch.setattr(flight_app, "state_mgr", mgr)
+    monkeypatch.setattr(flight_app.route_client, "get_route", lambda callsign: {
+        "airports": [
+            {"iata": "DAL", "location": "Dallas", "lat": 32.8471, "lon": -96.8518},
+            {"iata": "ORD", "location": "Chicago", "lat": 41.9742, "lon": -87.9073},
+        ],
+    })
+    monkeypatch.setattr(flight_app.opensky, "get_track", lambda icao24: [
+        [0, 32.85, -96.85, 300, 0, False],
+    ])
+    emit = Mock()
+    monkeypatch.setattr(flight_app, "_emit_current_state", emit)
+
+    flight_app._prefetch_route_async("a1b2c3", "SWA1234")
+
+    state = mgr.get_display_state()
+    assert state["display"]["route_origin"] == "DAL"
+    assert state["display"]["route_destination"] == "ORD"
+    assert state["aircraft_list"][0]["route_checked_at"] is not None
+    emit.assert_called_once()

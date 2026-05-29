@@ -175,3 +175,39 @@ class TestGetDisplayState:
         state = mgr.get_display_state()
         assert state["nearby_count"] == 1
         assert state["display"] is not None
+
+
+class TestEnrichActive:
+    def test_route_enrichment_updates_current_state_and_summary(self):
+        mgr = AircraftStateManager()
+        mgr.update([_make_aircraft("a1b2c3", callsign="SWA1234")])
+
+        changed = mgr.enrich_active("a1b2c3", {
+            "route_origin": "DAL",
+            "route_destination": "ORD",
+            "route_display": "DAL \u2192 ORD",
+            "origin_city": "Dallas",
+            "destination_city": "Chicago",
+            "route_checked_at": 123.0,
+        }, expected_callsign="SWA1234")
+
+        assert changed is True
+        state = mgr.get_display_state()
+        assert state["display"]["route_origin"] == "DAL"
+        summary = state["aircraft_list"][0]
+        assert summary["route_origin"] == "DAL"
+        assert summary["route_destination"] == "ORD"
+        assert summary["route_display"] == "DAL \u2192 ORD"
+        assert summary["route_checked_at"] == 123.0
+
+    def test_route_enrichment_rejects_stale_callsign(self):
+        mgr = AircraftStateManager()
+        mgr.update([_make_aircraft("a1b2c3", callsign="SWA1234")])
+
+        changed = mgr.enrich_active("a1b2c3", {
+            "route_origin": "DAL",
+            "route_destination": "ORD",
+        }, expected_callsign="UAL123")
+
+        assert changed is False
+        assert mgr.get_display_state()["display"].get("route_origin") in (None, "")

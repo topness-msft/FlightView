@@ -68,10 +68,8 @@ SERVER_VERSION = _read_server_version()
 # --- Route enrichment prefetch (async fire-and-forget) ---
 # When a new callsign appears in the radar list, we schedule an adsb.lol
 # lookup on a small thread pool. The worker writes the route fields
-# directly into state_mgr._active. The next poll cycle's broadcast then
-# carries forward those fields automatically. Aircraft typically spend
-# 30-60s in the wider radar zone before promoting to the detail pane,
-# so the route is virtually always in place by then.
+# directly into state_mgr._active and broadcasts the refreshed state
+# immediately, so origin/destination appears as soon as the lookup completes.
 ROUTE_PREFETCH_MAX_WORKERS = 5
 # After a successful or suppressed reconcile, wait this long before retrying.
 # Suppressed entries (stale adsb data) shouldn't be polled every cycle, but
@@ -126,7 +124,8 @@ def _prefetch_route_async(icao24: str, callsign: str) -> None:
             enrichment["origin_city"] = result.get("origin_name", "")
             enrichment["destination_city"] = result.get("destination_name", "")
 
-        state_mgr.enrich_active(icao24, enrichment, expected_callsign=callsign)
+        if state_mgr.enrich_active(icao24, enrichment, expected_callsign=callsign):
+            _emit_current_state()
     except Exception:
         logger.exception("prefetch_route_async failed for %s", callsign)
     finally:
@@ -138,10 +137,10 @@ def _schedule_route_prefetches(aircraft_list: list[dict]) -> None:
     """Fire-and-forget: queue route lookups for any aircraft in the radar
     list that don't yet have route info.
 
-    Runs at the END of each poll cycle, AFTER the state has already been
-    broadcast — so the radar dot / list row appears with zero added
-    latency. Workers populate state_mgr._active in the background, and
-    the next poll's carry-forward picks them up.
+    Runs at the END of each poll cycle, AFTER the aircraft positions have
+    already been broadcast — so the radar dot / list row appears with zero
+    added latency. Workers populate state_mgr._active in the background and
+    immediately emit a refreshed state when route data changes.
     """
     if config.MOCK_MODE:
         return
@@ -177,6 +176,15 @@ _health: dict = {
     "last_success": None,   # Epoch timestamp of last successful poll
     "data_source": config.DATA_SOURCE,
 }
+
+
+def _emit_current_state() -> None:
+    """Broadcast current state after out-of-band enrichment updates."""
+    state = state_mgr.get_display_state()
+    state["health"] = dict(_health)
+    if SERVER_VERSION:
+        state["server_version"] = SERVER_VERSION
+    socketio.emit("aircraft_update", state)
 
 
 def _fetch_from_source() -> list[dict]:
@@ -272,11 +280,8 @@ def poll_aircraft():
                 logger.info("Events: %s", state["events"])
 
             # 6. Fire-and-forget: schedule async route lookups for any new
-            #    callsigns. Workers write back to state_mgr._active; the
-            #    next poll's broadcast carries the route forward. Aircraft
-            #    typically spend 30-60s in the radar zone before promoting
-            #    to the detail pane, so routes are virtually always in
-            #    place by then.
+            #    callsigns. Workers write back to state_mgr._active and emit
+            #    a refreshed state as soon as route data is available.
             _schedule_route_prefetches(state.get("aircraft_list", []))
 
         except Exception:
@@ -349,7 +354,9 @@ def handle_pin_flight(data):
         enrichment["fa_aircraft_type"] = route["aircraft_type"]
 
     # Persist enrichment into state manager's active aircraft (survives poll cycles)
-    state_mgr.enrich_active(icao24, enrichment)
+    applied = state_mgr.enrich_active(icao24, enrichment)
+    if not applied:
+        return
 
     # Emit updated state
     state = state_mgr.get_display_state()

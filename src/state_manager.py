@@ -82,8 +82,8 @@ class AircraftStateManager:
             # repopulates on its own.
             if icao in self._active:
                 prev = self._active[icao]
-                prev_callsign = (prev.get("callsign_raw") or "").strip().upper()
-                curr_callsign = (ac.get("callsign_raw") or "").strip().upper()
+                prev_callsign = (prev.get("callsign_raw") or prev.get("callsign") or "").strip().upper()
+                curr_callsign = (ac.get("callsign_raw") or ac.get("callsign") or "").strip().upper()
                 # Only invalidate route info when BOTH sides are non-empty
                 # AND they differ — a transient blank callsign read from
                 # the receiver shouldn't drop a valid route.
@@ -183,8 +183,10 @@ class AircraftStateManager:
                 "callsign_raw": ac.get("callsign_raw", ""),
                 "route_origin": ac.get("route_origin", ""),
                 "route_destination": ac.get("route_destination", ""),
+                "route_display": ac.get("route_display", ""),
                 "origin_city": ac.get("origin_city", ""),
                 "destination_city": ac.get("destination_city", ""),
+                "route_checked_at": ac.get("route_checked_at"),
             }
             for ac in sorted_active
         ]
@@ -280,7 +282,7 @@ class AircraftStateManager:
         icao24: str,
         enrichment: dict,
         expected_callsign: str | None = None,
-    ) -> None:
+    ) -> bool:
         """Apply API enrichment data to an active aircraft (persists across polls).
 
         Thread-safe — may be called from worker threads in the route
@@ -295,25 +297,34 @@ class AircraftStateManager:
                 Used by the async route prefetch so a route fetched for
                 callsign X is never applied to an airframe that has since
                 switched to flight Y.
+
+        Returns:
+            True when the active state changed.
         """
         with self._lock:
             ac = self._active.get(icao24)
             if not ac:
-                return
+                return False
             if expected_callsign is not None:
-                curr = (ac.get("callsign_raw") or "").strip().upper()
+                curr = (ac.get("callsign_raw") or ac.get("callsign") or "").strip().upper()
                 if curr != expected_callsign.strip().upper():
-                    return
+                    return False
+            changed = False
             # Always set route/city fields
             for field in ("route_origin", "route_destination", "route_display",
                            "origin_city", "destination_city", "route_checked_at"):
                 if enrichment.get(field) is not None and enrichment.get(field) != "":
+                    changed = changed or ac.get(field) != enrichment[field]
                     ac[field] = enrichment[field]
             # Backfill airline from FA operator if local decode was Unknown
             if ac.get("airline") in ("", "Unknown") and enrichment.get("fa_operator"):
+                changed = changed or ac.get("airline") != enrichment["fa_operator"]
                 ac["airline"] = enrichment["fa_operator"]
             # Backfill aircraft type from FA if local ICAO DB had nothing
             if not ac.get("aircraft_type") and enrichment.get("fa_aircraft_type"):
+                changed = changed or ac.get("aircraft_type") != enrichment["fa_aircraft_type"]
                 ac["aircraft_type"] = enrichment["fa_aircraft_type"]
             # Rebuild the state so get_display_state() reflects the enrichment
-            self._rebuild_state()
+            if changed:
+                self._rebuild_state()
+            return changed
