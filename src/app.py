@@ -81,6 +81,10 @@ _route_executor = ThreadPoolExecutor(
 )
 _route_inflight_lock = threading.Lock()
 _route_inflight: set[str] = set()  # route lookup keys currently being fetched
+# icao24 -> epoch of first radar contact while still lacking a route. Used to
+# measure end-to-end lead time (first contact → origin/destination available)
+# so we can verify routes warm up before an aircraft reaches the detail zone.
+_route_first_seen: dict[str, float] = {}
 
 
 def _normalize_callsign(cs: str) -> str:
@@ -124,30 +128,39 @@ def _build_route_enrichment(icao24: str, callsign: str) -> dict:
     origin/destination could take ~10s+ to appear.  We run them concurrently
     so total latency is bounded by the slower of the two, not their sum.
     """
+    t0 = time.time()
     track_holder: dict = {}
 
     def _fetch_track() -> None:
+        tt0 = time.time()
         try:
             track_holder["path"] = opensky.get_track(icao24)
         except Exception:
             logger.warning("track fetch failed for %s", icao24, exc_info=True)
             track_holder["path"] = None
+        track_holder["ms"] = int((time.time() - tt0) * 1000)
 
     track_thread = threading.Thread(
         target=_fetch_track, name="route-track", daemon=True
     )
     track_thread.start()
 
+    ta0 = time.time()
     adsb_route = route_client.get_route(callsign)
+    adsb_ms = int((time.time() - ta0) * 1000)
 
     track_thread.join()
     track_path = track_holder.get("path")
+    track_ms = track_holder.get("ms", 0)
     takeoff = find_takeoff_point(track_path)
 
     result = reconcile_route(adsb_route, takeoff)
+    total_ms = int((time.time() - t0) * 1000)
     logger.info(
-        "route reconcile %s/%s: %s→%s conf=%s (%s)",
-        icao24, callsign,
+        "route timing %s/%s: total=%dms adsb=%dms(%s) track=%dms(%s) → %s→%s conf=%s (%s)",
+        icao24, callsign, total_ms,
+        adsb_ms, "hit" if adsb_route else "miss",
+        track_ms, "hit" if track_path else "none",
         result.get("origin") or "-",
         result.get("destination") or "-",
         result.get("confidence"),
@@ -200,6 +213,17 @@ def _prefetch_route_async(icao24: str, callsign: str, route_key: str | None = No
             return
         enrichment = _build_route_enrichment(icao24, resolved_callsign)
         if state_mgr.enrich_active(icao24, enrichment, expected_callsign=resolved_callsign):
+            if enrichment.get("route_origin"):
+                with _route_inflight_lock:
+                    first_seen = _route_first_seen.pop(icao24, None)
+                if first_seen is not None:
+                    logger.info(
+                        "route lead-time %s/%s: %.1fs from first radar contact "
+                        "to route available (%s→%s)",
+                        icao24, resolved_callsign, time.time() - first_seen,
+                        enrichment.get("route_origin"),
+                        enrichment.get("route_destination") or "?",
+                    )
             _emit_current_state()
     except Exception:
         logger.exception("prefetch_route_async failed for %s", callsign)
@@ -223,13 +247,25 @@ def _schedule_route_prefetches(aircraft_list: list[dict]) -> None:
 
     to_submit: list[tuple[str, str, str]] = []
     now = time.time()
+    current_icaos: set[str] = set()
     for ac in aircraft_list:
         icao24 = (ac.get("icao24") or "").strip()
         callsign = _normalize_callsign(ac.get("callsign_raw") or ac.get("callsign"))
         if not icao24:
             continue
+        current_icaos.add(icao24)
         if ac.get("route_origin"):
             continue  # already enriched
+        # First poll this aircraft appears without a route: stamp the moment of
+        # radar contact so the worker can report end-to-end lead time.
+        with _route_inflight_lock:
+            if icao24 not in _route_first_seen:
+                _route_first_seen[icao24] = now
+                logger.info(
+                    "route first contact %s/%s (dist=%sft alt=%sft)",
+                    icao24, callsign or "?",
+                    ac.get("distance_ft"), ac.get("altitude_ft"),
+                )
         # Skip aircraft we recently checked and suppressed (no useful
         # data available right now); they'll be retried after the
         # recheck interval.
@@ -239,6 +275,12 @@ def _schedule_route_prefetches(aircraft_list: list[dict]) -> None:
         route_key = _route_key(icao24, callsign)
         if _mark_route_inflight(route_key):
             to_submit.append((icao24, callsign, route_key))
+
+    # Drop first-contact stamps for aircraft that have left the radar zone so
+    # the dict can't grow unbounded.
+    with _route_inflight_lock:
+        for stale in [i for i in _route_first_seen if i not in current_icaos]:
+            _route_first_seen.pop(stale, None)
 
     for icao24, callsign, route_key in to_submit:
         _route_executor.submit(_prefetch_route_async, icao24, callsign, route_key)
