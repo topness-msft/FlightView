@@ -10,6 +10,7 @@ import time
 
 import os
 
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 
 from flask import Flask, send_from_directory, request, jsonify
@@ -85,6 +86,16 @@ _route_inflight: set[str] = set()  # route lookup keys currently being fetched
 # measure end-to-end lead time (first contact → origin/destination available)
 # so we can verify routes warm up before an aircraft reaches the detail zone.
 _route_first_seen: dict[str, float] = {}
+# Recent route diagnostics (first contact / worker timing / lead time), exposed
+# over HTTP at /api/route-log so timing can be inspected without journal access.
+_route_log: deque = deque(maxlen=200)
+
+
+def _route_log_add(event: str, **fields) -> None:
+    """Append a structured route-diagnostics record to the ring buffer."""
+    record = {"ts": time.time(), "event": event}
+    record.update(fields)
+    _route_log.append(record)
 
 
 def _normalize_callsign(cs: str) -> str:
@@ -156,6 +167,14 @@ def _build_route_enrichment(icao24: str, callsign: str) -> dict:
 
     result = reconcile_route(adsb_route, takeoff)
     total_ms = int((time.time() - t0) * 1000)
+    _route_log_add(
+        "timing", icao24=icao24, callsign=callsign,
+        total_ms=total_ms,
+        adsb_ms=adsb_ms, adsb_hit=bool(adsb_route),
+        track_ms=track_ms, track_hit=bool(track_path),
+        origin=result.get("origin") or "", destination=result.get("destination") or "",
+        confidence=result.get("confidence"), reason=result.get("reason"),
+    )
     logger.info(
         "route timing %s/%s: total=%dms adsb=%dms(%s) track=%dms(%s) → %s→%s conf=%s (%s)",
         icao24, callsign, total_ms,
@@ -217,10 +236,17 @@ def _prefetch_route_async(icao24: str, callsign: str, route_key: str | None = No
                 with _route_inflight_lock:
                     first_seen = _route_first_seen.pop(icao24, None)
                 if first_seen is not None:
+                    lead_s = time.time() - first_seen
+                    _route_log_add(
+                        "lead_time", icao24=icao24, callsign=resolved_callsign,
+                        lead_s=round(lead_s, 1),
+                        origin=enrichment.get("route_origin"),
+                        destination=enrichment.get("route_destination") or "?",
+                    )
                     logger.info(
                         "route lead-time %s/%s: %.1fs from first radar contact "
                         "to route available (%s→%s)",
-                        icao24, resolved_callsign, time.time() - first_seen,
+                        icao24, resolved_callsign, lead_s,
                         enrichment.get("route_origin"),
                         enrichment.get("route_destination") or "?",
                     )
@@ -261,6 +287,10 @@ def _schedule_route_prefetches(aircraft_list: list[dict]) -> None:
         with _route_inflight_lock:
             if icao24 not in _route_first_seen:
                 _route_first_seen[icao24] = now
+                _route_log_add(
+                    "first_contact", icao24=icao24, callsign=callsign or "",
+                    distance_ft=ac.get("distance_ft"), altitude_ft=ac.get("altitude_ft"),
+                )
                 logger.info(
                     "route first contact %s/%s (dist=%sft alt=%sft)",
                     icao24, callsign or "?",
@@ -591,6 +621,24 @@ def get_receiver_status():
         result["health"]["message"] = str(exc)
 
     return jsonify(result)
+
+
+@app.route("/api/route-log", methods=["GET"])
+def get_route_log():
+    """Diagnostic: return recent route enrichment timing/lead-time records.
+
+    Optional ?callsign=BAW290 filters to one flight; ?limit=N caps results.
+    """
+    cs = request.args.get("callsign", "").strip().upper()
+    try:
+        limit = int(request.args.get("limit", "100"))
+    except ValueError:
+        limit = 100
+    records = list(_route_log)
+    if cs:
+        records = [r for r in records if (r.get("callsign") or "").upper() == cs]
+    records = records[-limit:]
+    return jsonify({"count": len(records), "records": records})
 
 
 @app.route("/api/route", methods=["GET"])
