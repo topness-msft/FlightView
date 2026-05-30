@@ -16,6 +16,9 @@
     var pinnedIcao = null;
     var pinnedTimer = null;
     var PINNED_DURATION_MS = 10000;
+    var DETAIL_ROUTE_WAIT_MS = 4500;
+    var routeWaitFlightId = null;
+    var routeWaitUntil = 0;
 
     // ── DOM refs ──────────────────────────────────
     var screens = {
@@ -120,10 +123,30 @@
     function resolveScreen() {
         if (prevScreen === "config") return;
         var s = latestState;
-        var hasDisplay = s && s.display;
+        var display = s && s.display;
+        var hasDisplay = !!display;
         var hasPinned = pinnedIcao && s && findAircraft(s, pinnedIcao);
+        if (hasDisplay && !hasPinned && needsRoutePreload(display)) {
+            var id = display.icao24 || display.callsign_raw || display.callsign;
+            if (routeWaitFlightId !== id) {
+                routeWaitFlightId = id;
+                routeWaitUntil = Date.now() + DETAIL_ROUTE_WAIT_MS;
+            }
+            if (Date.now() < routeWaitUntil) {
+                currentView = "multi";
+                showScreen(theme + "-" + currentView);
+                return;
+            }
+        } else if (!hasDisplay || !needsRoutePreload(display)) {
+            routeWaitFlightId = null;
+            routeWaitUntil = 0;
+        }
         currentView = (hasDisplay || hasPinned) ? "single" : "multi";
         showScreen(theme + "-" + currentView);
+    }
+
+    function needsRoutePreload(display) {
+        return !!(display && !display.route_origin && !display.route_checked_at && (display.callsign_raw || display.callsign));
     }
 
     function findAircraft(state, icao) {
@@ -831,7 +854,7 @@
             if (display) updateModernSingle(display, pinnedIcao ? 1 : nearCount);
         }
         // Request route enrichment if detail view has no route data yet
-        if (display && !display.route_origin && !display.route_checked_at && display.callsign_raw) {
+        if (needsRoutePreload(display)) {
             socket.emit("pin_flight", { icao24: display.icao24, callsign: display.callsign_raw || display.callsign || "" });
         }
     }
