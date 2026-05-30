@@ -55,6 +55,49 @@ def test_route_prefetch_emits_updated_state_immediately(monkeypatch):
     emit.assert_called_once()
 
 
+def test_route_prefetch_backfills_blank_receiver_callsign(monkeypatch):
+    _clear_route_state()
+    mgr = AircraftStateManager()
+    mgr.update([_active_aircraft("")])
+    monkeypatch.setattr(flight_app, "state_mgr", mgr)
+    monkeypatch.setattr(flight_app.opensky, "get_callsign", lambda icao24: "ICE2B")
+    monkeypatch.setattr(flight_app.route_client, "get_route", lambda callsign: {
+        "airports": [
+            {"iata": "IAD", "location": "Washington", "lat": 38.9531, "lon": -77.4565},
+            {"iata": "KEF", "location": "Reykjavik", "lat": 63.9850, "lon": -22.6056},
+        ],
+    })
+    monkeypatch.setattr(flight_app.opensky, "get_track", lambda icao24: [
+        [0, 38.95, -77.45, 300, 0, False],
+    ])
+    emit = Mock()
+    monkeypatch.setattr(flight_app, "_emit_current_state", emit)
+
+    flight_app._prefetch_route_async("a1b2c3", "", "icao:a1b2c3")
+
+    state = mgr.get_display_state()
+    assert state["display"]["callsign_raw"] == "ICE2B"
+    assert state["display"]["route_origin"] == "IAD"
+    assert state["display"]["route_destination"] == "KEF"
+    emit.assert_called_once()
+
+
+def test_schedule_route_prefetch_queues_blank_callsign_aircraft(monkeypatch):
+    _clear_route_state()
+    submit = Mock()
+    monkeypatch.setattr(flight_app._route_executor, "submit", submit)
+
+    flight_app._schedule_route_prefetches([{
+        "icao24": "a1b2c3",
+        "callsign_raw": "",
+        "route_origin": "",
+        "route_checked_at": None,
+    }])
+
+    submit.assert_called_once()
+    assert submit.call_args.args[1:] == ("a1b2c3", "", "icao:a1b2c3")
+
+
 def test_pin_flight_uses_reconciler_to_suppress_stale_circular_route(monkeypatch):
     _clear_route_state()
     mgr = AircraftStateManager()

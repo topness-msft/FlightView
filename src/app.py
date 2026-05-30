@@ -80,25 +80,40 @@ _route_executor = ThreadPoolExecutor(
     thread_name_prefix="route-fetch",
 )
 _route_inflight_lock = threading.Lock()
-_route_inflight: set[str] = set()  # callsigns currently being fetched
+_route_inflight: set[str] = set()  # route lookup keys currently being fetched
 
 
 def _normalize_callsign(cs: str) -> str:
     return (cs or "").strip().upper()
 
 
-def _mark_route_inflight(callsign: str) -> bool:
-    """Return True when this caller owns the route lookup for callsign."""
+def _mark_route_inflight(route_key: str) -> bool:
+    """Return True when this caller owns the route lookup key."""
     with _route_inflight_lock:
-        if callsign in _route_inflight:
+        if route_key in _route_inflight:
             return False
-        _route_inflight.add(callsign)
+        _route_inflight.add(route_key)
         return True
 
 
-def _clear_route_inflight(callsign: str) -> None:
+def _clear_route_inflight(route_key: str) -> None:
     with _route_inflight_lock:
-        _route_inflight.discard(callsign)
+        _route_inflight.discard(route_key)
+
+
+def _route_key(icao24: str, callsign: str) -> str:
+    return callsign or f"icao:{icao24.strip().lower()}"
+
+
+def _resolve_route_callsign(icao24: str, callsign: str) -> str | None:
+    callsign = _normalize_callsign(callsign)
+    if callsign:
+        return callsign
+    resolved = _normalize_callsign(opensky.get_callsign(icao24))
+    if resolved:
+        logger.info("OpenSky callsign backfill %s → %s", icao24, resolved)
+        return resolved
+    return None
 
 
 def _build_route_enrichment(icao24: str, callsign: str) -> dict:
@@ -117,7 +132,10 @@ def _build_route_enrichment(icao24: str, callsign: str) -> dict:
         result.get("reason"),
     )
 
-    enrichment: dict = {"route_checked_at": time.time()}
+    enrichment: dict = {
+        "route_checked_at": time.time(),
+        "callsign_raw": callsign,
+    }
     if result.get("origin"):
         enrichment["route_origin"] = result["origin"]
         enrichment["route_destination"] = result.get("destination", "")
@@ -139,7 +157,7 @@ def _build_route_enrichment(icao24: str, callsign: str) -> dict:
     return enrichment
 
 
-def _prefetch_route_async(icao24: str, callsign: str) -> None:
+def _prefetch_route_async(icao24: str, callsign: str, route_key: str | None = None) -> None:
     """Worker-thread function: fetch + reconcile route, then write to state.
 
     Pulls the canonical route from adsb.lol and the LIVE flight track from
@@ -148,14 +166,25 @@ def _prefetch_route_async(icao24: str, callsign: str) -> None:
     every case we set ``route_checked_at`` so the scheduler doesn't re-fetch
     immediately even when the result was suppression.
     """
+    route_key = route_key or _route_key(icao24, callsign)
+    callsign_key = None
     try:
-        enrichment = _build_route_enrichment(icao24, callsign)
-        if state_mgr.enrich_active(icao24, enrichment, expected_callsign=callsign):
+        resolved_callsign = _resolve_route_callsign(icao24, callsign)
+        if not resolved_callsign:
+            logger.info("route prefetch skipped for %s: no callsign yet", icao24)
+            return
+        callsign_key = resolved_callsign
+        if callsign_key != route_key and not _mark_route_inflight(callsign_key):
+            return
+        enrichment = _build_route_enrichment(icao24, resolved_callsign)
+        if state_mgr.enrich_active(icao24, enrichment, expected_callsign=resolved_callsign):
             _emit_current_state()
     except Exception:
         logger.exception("prefetch_route_async failed for %s", callsign)
     finally:
-        _clear_route_inflight(callsign)
+        _clear_route_inflight(route_key)
+        if callsign_key and callsign_key != route_key:
+            _clear_route_inflight(callsign_key)
 
 
 def _schedule_route_prefetches(aircraft_list: list[dict]) -> None:
@@ -170,12 +199,12 @@ def _schedule_route_prefetches(aircraft_list: list[dict]) -> None:
     if config.MOCK_MODE:
         return
 
-    to_submit: list[tuple[str, str]] = []
+    to_submit: list[tuple[str, str, str]] = []
     now = time.time()
     for ac in aircraft_list:
         icao24 = (ac.get("icao24") or "").strip()
         callsign = _normalize_callsign(ac.get("callsign_raw") or ac.get("callsign"))
-        if not icao24 or not callsign:
+        if not icao24:
             continue
         if ac.get("route_origin"):
             continue  # already enriched
@@ -185,11 +214,12 @@ def _schedule_route_prefetches(aircraft_list: list[dict]) -> None:
         checked_at = ac.get("route_checked_at")
         if checked_at and (now - float(checked_at)) < ROUTE_RECHECK_INTERVAL_SEC:
             continue
-        if _mark_route_inflight(callsign):
-            to_submit.append((icao24, callsign))
+        route_key = _route_key(icao24, callsign)
+        if _mark_route_inflight(route_key):
+            to_submit.append((icao24, callsign, route_key))
 
-    for icao24, callsign in to_submit:
-        _route_executor.submit(_prefetch_route_async, icao24, callsign)
+    for icao24, callsign, route_key in to_submit:
+        _route_executor.submit(_prefetch_route_async, icao24, callsign, route_key)
 
 # --- Health state (pushed to frontend with each update) ---
 _health: dict = {
@@ -358,17 +388,26 @@ def handle_pin_flight(data):
     """Fetch route enrichment for a pinned aircraft and push update."""
     callsign = _normalize_callsign(data.get("callsign"))
     icao24 = (data.get("icao24") or "").strip()
-    if not callsign or not icao24 or config.MOCK_MODE:
+    if not icao24 or config.MOCK_MODE:
         return
-    if not _mark_route_inflight(callsign):
+    route_key = _route_key(icao24, callsign)
+    if not _mark_route_inflight(route_key):
         return
+    resolved_callsign = None
     try:
-        enrichment = _build_route_enrichment(icao24, callsign)
+        resolved_callsign = _resolve_route_callsign(icao24, callsign)
+        if not resolved_callsign:
+            return
+        if resolved_callsign != route_key and not _mark_route_inflight(resolved_callsign):
+            return
+        enrichment = _build_route_enrichment(icao24, resolved_callsign)
     finally:
-        _clear_route_inflight(callsign)
+        _clear_route_inflight(route_key)
+        if resolved_callsign and resolved_callsign != route_key:
+            _clear_route_inflight(resolved_callsign)
 
     # Persist enrichment into state manager's active aircraft (survives poll cycles)
-    applied = state_mgr.enrich_active(icao24, enrichment, expected_callsign=callsign)
+    applied = state_mgr.enrich_active(icao24, enrichment, expected_callsign=resolved_callsign)
     if not applied:
         return
 

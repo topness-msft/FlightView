@@ -33,6 +33,9 @@ FEET_PER_DEG_LAT = 364_000
 TRACK_CACHE_TTL_SEC = 600
 TRACK_NEG_CACHE_TTL_SEC = 300  # shorter so a missed-on-takeoff plane gets retried
 TRACK_REQUEST_TIMEOUT_SEC = 6
+CALLSIGN_CACHE_TTL_SEC = 60
+CALLSIGN_NEG_CACHE_TTL_SEC = 15
+CALLSIGN_REQUEST_TIMEOUT_SEC = 4
 
 
 def build_bounding_box(lat: float, lon: float, radius_ft: float) -> tuple[float, float, float, float]:
@@ -72,6 +75,8 @@ class OpenSkyClient:
         # Per-airframe live track cache (icao24 -> {timestamp, path}).
         self._track_cache: dict[str, dict] = {}
         self._track_neg_cache: dict[str, float] = {}
+        self._callsign_cache: dict[str, dict] = {}
+        self._callsign_neg_cache: dict[str, float] = {}
         self._track_lock = threading.Lock()
 
     def _get_access_token(self) -> str | None:
@@ -258,3 +263,54 @@ class OpenSkyClient:
         logger.debug("OpenSky track for %s: %d points, first=%s", icao24, len(path), path[0])
         return path
 
+    def get_callsign(self, icao24: str) -> str | None:
+        """Return the current OpenSky callsign for an airframe, if available."""
+        if not icao24:
+            return None
+        icao24 = icao24.strip().lower()
+        now = time.time()
+
+        with self._track_lock:
+            cached = self._callsign_cache.get(icao24)
+            if cached and (now - cached["timestamp"]) < CALLSIGN_CACHE_TTL_SEC:
+                return cached["callsign"]
+            neg_ts = self._callsign_neg_cache.get(icao24)
+            if neg_ts and (now - neg_ts) < CALLSIGN_NEG_CACHE_TTL_SEC:
+                return None
+
+        headers = {}
+        token = self._get_access_token()
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+        try:
+            resp = requests.get(
+                OPENSKY_API_URL,
+                params={"icao24": icao24},
+                timeout=CALLSIGN_REQUEST_TIMEOUT_SEC,
+                headers=headers,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except requests.RequestException as exc:
+            logger.warning("OpenSky callsign lookup failed for %s: %s", icao24, exc)
+            return None
+        except ValueError:
+            logger.warning("OpenSky callsign lookup returned invalid JSON for %s", icao24)
+            return None
+
+        callsign = ""
+        states = (data or {}).get("states") or []
+        if states:
+            try:
+                callsign = (states[0][1] or "").strip().upper()
+            except (IndexError, TypeError):
+                callsign = ""
+
+        with self._track_lock:
+            if callsign:
+                self._callsign_cache[icao24] = {"timestamp": now, "callsign": callsign}
+                self._callsign_neg_cache.pop(icao24, None)
+                return callsign
+            self._callsign_neg_cache[icao24] = now
+            return None

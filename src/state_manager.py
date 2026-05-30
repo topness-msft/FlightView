@@ -307,9 +307,20 @@ class AircraftStateManager:
                 return False
             if expected_callsign is not None:
                 curr = (ac.get("callsign_raw") or ac.get("callsign") or "").strip().upper()
-                if curr != expected_callsign.strip().upper():
+                if curr and curr != expected_callsign.strip().upper():
                     return False
             changed = False
+            if enrichment.get("callsign_raw") and not (ac.get("callsign_raw") or ac.get("callsign")):
+                callsign = enrichment["callsign_raw"]
+                decoded = decode_callsign(callsign)
+                for field, value in (
+                    ("callsign", callsign),
+                    ("callsign_raw", callsign),
+                    ("airline", decoded["airline"]),
+                    ("flight_display", decoded["display"]),
+                ):
+                    changed = changed or ac.get(field) != value
+                    ac[field] = value
             # Always set route/city fields
             for field in ("route_origin", "route_destination", "route_display",
                            "origin_city", "destination_city", "route_checked_at"):
