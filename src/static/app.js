@@ -16,9 +16,6 @@
     var pinnedIcao = null;
     var pinnedTimer = null;
     var PINNED_DURATION_MS = 10000;
-    var DETAIL_ROUTE_WAIT_MS = 4500;
-    var routeWaitFlightId = null;
-    var routeWaitUntil = 0;
 
     // ── DOM refs ──────────────────────────────────
     var screens = {
@@ -123,24 +120,8 @@
     function resolveScreen() {
         if (prevScreen === "config") return;
         var s = latestState;
-        var display = s && s.display;
-        var hasDisplay = !!display;
+        var hasDisplay = s && s.display;
         var hasPinned = pinnedIcao && s && findAircraft(s, pinnedIcao);
-        if (hasDisplay && !hasPinned && needsRoutePreload(display)) {
-            var id = display.icao24 || display.callsign_raw || display.callsign;
-            if (routeWaitFlightId !== id) {
-                routeWaitFlightId = id;
-                routeWaitUntil = Date.now() + DETAIL_ROUTE_WAIT_MS;
-            }
-            if (Date.now() < routeWaitUntil) {
-                currentView = "multi";
-                showScreen(theme + "-" + currentView);
-                return;
-            }
-        } else if (!hasDisplay || !needsRoutePreload(display)) {
-            routeWaitFlightId = null;
-            routeWaitUntil = 0;
-        }
         currentView = (hasDisplay || hasPinned) ? "single" : "multi";
         showScreen(theme + "-" + currentView);
     }
