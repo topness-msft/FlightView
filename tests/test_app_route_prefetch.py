@@ -10,11 +10,11 @@ import app as flight_app  # noqa: E402
 from state_manager import AircraftStateManager  # noqa: E402
 
 
-def _active_aircraft():
+def _active_aircraft(callsign="SWA1234"):
     return {
         "icao24": "a1b2c3",
-        "callsign": "SWA1234",
-        "callsign_raw": "SWA1234",
+        "callsign": callsign,
+        "callsign_raw": callsign,
         "distance_ft": 1000,
         "altitude_ft": 2000,
         "bearing": 0,
@@ -46,4 +46,33 @@ def test_route_prefetch_emits_updated_state_immediately(monkeypatch):
     assert state["display"]["route_origin"] == "DAL"
     assert state["display"]["route_destination"] == "ORD"
     assert state["aircraft_list"][0]["route_checked_at"] is not None
+    emit.assert_called_once()
+
+
+def test_pin_flight_uses_reconciler_to_suppress_stale_circular_route(monkeypatch):
+    mgr = AircraftStateManager()
+    mgr.update([_active_aircraft("JIA5458")])
+    monkeypatch.setattr(flight_app, "state_mgr", mgr)
+    monkeypatch.setattr(flight_app.route_client, "get_route", lambda callsign: {
+        "origin": "DFW",
+        "destination": "DFW",
+        "origin_name": "Dallas-Fort Worth",
+        "destination_name": "Dallas-Fort Worth",
+        "airports": [
+            {"iata": "DFW", "location": "Dallas-Fort Worth", "lat": 32.8998, "lon": -97.0403},
+            {"iata": "DFW", "location": "Dallas-Fort Worth", "lat": 32.8998, "lon": -97.0403},
+        ],
+    })
+    monkeypatch.setattr(flight_app.opensky, "get_track", lambda icao24: [
+        [0, 38.9445, -77.4558, 300, 0, False],
+    ])
+    emit = Mock()
+    monkeypatch.setattr(flight_app, "emit", emit)
+
+    flight_app.handle_pin_flight({"icao24": "a1b2c3", "callsign": "JIA5458"})
+
+    state = mgr.get_display_state()
+    assert state["display"].get("route_origin") in (None, "")
+    assert state["display"].get("route_destination") in (None, "")
+    assert state["display"]["route_checked_at"] is not None
     emit.assert_called_once()

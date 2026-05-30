@@ -831,7 +831,7 @@
             if (display) updateModernSingle(display, pinnedIcao ? 1 : nearCount);
         }
         // Request route enrichment if detail view has no route data yet
-        if (display && !display.route_origin && display.callsign_raw) {
+        if (display && !display.route_origin && !display.route_checked_at && display.callsign_raw) {
             socket.emit("pin_flight", { icao24: display.icao24, callsign: display.callsign_raw || display.callsign || "" });
         }
     }

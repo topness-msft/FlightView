@@ -87,6 +87,44 @@ def _normalize_callsign(cs: str) -> str:
     return (cs or "").strip().upper()
 
 
+def _build_route_enrichment(icao24: str, callsign: str) -> dict:
+    """Fetch and reconcile route data for an active aircraft."""
+    adsb_route = route_client.get_route(callsign)
+    track_path = opensky.get_track(icao24)
+    takeoff = find_takeoff_point(track_path)
+
+    result = reconcile_route(adsb_route, takeoff)
+    logger.info(
+        "route reconcile %s/%s: %s→%s conf=%s (%s)",
+        icao24, callsign,
+        result.get("origin") or "-",
+        result.get("destination") or "-",
+        result.get("confidence"),
+        result.get("reason"),
+    )
+
+    enrichment: dict = {"route_checked_at": time.time()}
+    if result.get("origin"):
+        enrichment["route_origin"] = result["origin"]
+        enrichment["route_destination"] = result.get("destination", "")
+        if result.get("destination"):
+            enrichment["route_display"] = f"{result['origin']} → {result['destination']}"
+        else:
+            # Known origin, unknown destination (e.g. matched terminal
+            # airport of a multi-leg canonical route).  Show the partial.
+            enrichment["route_display"] = f"{result['origin']} → ?"
+        enrichment["origin_city"] = result.get("origin_name", "")
+        enrichment["destination_city"] = result.get("destination_name", "")
+
+    if adsb_route:
+        if adsb_route.get("operator"):
+            enrichment["fa_operator"] = adsb_route["operator"]
+        if adsb_route.get("aircraft_type"):
+            enrichment["fa_aircraft_type"] = adsb_route["aircraft_type"]
+
+    return enrichment
+
+
 def _prefetch_route_async(icao24: str, callsign: str) -> None:
     """Worker-thread function: fetch + reconcile route, then write to state.
 
@@ -97,33 +135,7 @@ def _prefetch_route_async(icao24: str, callsign: str) -> None:
     immediately even when the result was suppression.
     """
     try:
-        adsb_route = route_client.get_route(callsign)
-        track_path = opensky.get_track(icao24)
-        takeoff = find_takeoff_point(track_path)
-
-        result = reconcile_route(adsb_route, takeoff)
-        logger.info(
-            "route reconcile %s/%s: %s→%s conf=%s (%s)",
-            icao24, callsign,
-            result.get("origin") or "-",
-            result.get("destination") or "-",
-            result.get("confidence"),
-            result.get("reason"),
-        )
-
-        enrichment: dict = {"route_checked_at": time.time()}
-        if result.get("origin"):
-            enrichment["route_origin"] = result["origin"]
-            enrichment["route_destination"] = result.get("destination", "")
-            if result.get("destination"):
-                enrichment["route_display"] = f"{result['origin']} → {result['destination']}"
-            else:
-                # Known origin, unknown destination (e.g. matched terminal
-                # airport of a multi-leg canonical route).  Show the partial.
-                enrichment["route_display"] = f"{result['origin']} → ?"
-            enrichment["origin_city"] = result.get("origin_name", "")
-            enrichment["destination_city"] = result.get("destination_name", "")
-
+        enrichment = _build_route_enrichment(icao24, callsign)
         if state_mgr.enrich_active(icao24, enrichment, expected_callsign=callsign):
             _emit_current_state()
     except Exception:
@@ -334,27 +346,14 @@ def handle_request_update():
 @socketio.on("pin_flight")
 def handle_pin_flight(data):
     """Fetch route enrichment for a pinned aircraft and push update."""
-    callsign = (data.get("callsign") or "").strip()
+    callsign = _normalize_callsign(data.get("callsign"))
     icao24 = (data.get("icao24") or "").strip()
-    if not callsign or config.MOCK_MODE:
+    if not callsign or not icao24 or config.MOCK_MODE:
         return
-    route = route_client.get_route(callsign)
-    if not route or not route.get("origin"):
-        return
-    enrichment = {
-        "route_origin": route["origin"],
-        "route_destination": route["destination"],
-        "route_display": f"{route['origin']} → {route['destination']}",
-        "origin_city": route.get("origin_name", ""),
-        "destination_city": route.get("destination_name", ""),
-    }
-    if route.get("operator"):
-        enrichment["fa_operator"] = route["operator"]
-    if route.get("aircraft_type"):
-        enrichment["fa_aircraft_type"] = route["aircraft_type"]
+    enrichment = _build_route_enrichment(icao24, callsign)
 
     # Persist enrichment into state manager's active aircraft (survives poll cycles)
-    applied = state_mgr.enrich_active(icao24, enrichment)
+    applied = state_mgr.enrich_active(icao24, enrichment, expected_callsign=callsign)
     if not applied:
         return
 
