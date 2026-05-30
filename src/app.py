@@ -117,9 +117,31 @@ def _resolve_route_callsign(icao24: str, callsign: str) -> str | None:
 
 
 def _build_route_enrichment(icao24: str, callsign: str) -> dict:
-    """Fetch and reconcile route data for an active aircraft."""
+    """Fetch and reconcile route data for an active aircraft.
+
+    The adsb.lol route lookup and the OpenSky track lookup are independent
+    network calls, each with a ~6s timeout.  Running them sequentially meant
+    origin/destination could take ~10s+ to appear.  We run them concurrently
+    so total latency is bounded by the slower of the two, not their sum.
+    """
+    track_holder: dict = {}
+
+    def _fetch_track() -> None:
+        try:
+            track_holder["path"] = opensky.get_track(icao24)
+        except Exception:
+            logger.warning("track fetch failed for %s", icao24, exc_info=True)
+            track_holder["path"] = None
+
+    track_thread = threading.Thread(
+        target=_fetch_track, name="route-track", daemon=True
+    )
+    track_thread.start()
+
     adsb_route = route_client.get_route(callsign)
-    track_path = opensky.get_track(icao24)
+
+    track_thread.join()
+    track_path = track_holder.get("path")
     takeoff = find_takeoff_point(track_path)
 
     result = reconcile_route(adsb_route, takeoff)
