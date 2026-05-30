@@ -87,6 +87,20 @@ def _normalize_callsign(cs: str) -> str:
     return (cs or "").strip().upper()
 
 
+def _mark_route_inflight(callsign: str) -> bool:
+    """Return True when this caller owns the route lookup for callsign."""
+    with _route_inflight_lock:
+        if callsign in _route_inflight:
+            return False
+        _route_inflight.add(callsign)
+        return True
+
+
+def _clear_route_inflight(callsign: str) -> None:
+    with _route_inflight_lock:
+        _route_inflight.discard(callsign)
+
+
 def _build_route_enrichment(icao24: str, callsign: str) -> dict:
     """Fetch and reconcile route data for an active aircraft."""
     adsb_route = route_client.get_route(callsign)
@@ -141,8 +155,7 @@ def _prefetch_route_async(icao24: str, callsign: str) -> None:
     except Exception:
         logger.exception("prefetch_route_async failed for %s", callsign)
     finally:
-        with _route_inflight_lock:
-            _route_inflight.discard(callsign)
+        _clear_route_inflight(callsign)
 
 
 def _schedule_route_prefetches(aircraft_list: list[dict]) -> None:
@@ -157,25 +170,22 @@ def _schedule_route_prefetches(aircraft_list: list[dict]) -> None:
     if config.MOCK_MODE:
         return
 
-    with _route_inflight_lock:
-        to_submit: list[tuple[str, str]] = []
-        now = time.time()
-        for ac in aircraft_list:
-            icao24 = (ac.get("icao24") or "").strip()
-            callsign = _normalize_callsign(ac.get("callsign_raw") or ac.get("callsign"))
-            if not icao24 or not callsign:
-                continue
-            if ac.get("route_origin"):
-                continue  # already enriched
-            # Skip aircraft we recently checked and suppressed (no useful
-            # data available right now); they'll be retried after the
-            # recheck interval.
-            checked_at = ac.get("route_checked_at")
-            if checked_at and (now - float(checked_at)) < ROUTE_RECHECK_INTERVAL_SEC:
-                continue
-            if callsign in _route_inflight:
-                continue  # already being fetched
-            _route_inflight.add(callsign)
+    to_submit: list[tuple[str, str]] = []
+    now = time.time()
+    for ac in aircraft_list:
+        icao24 = (ac.get("icao24") or "").strip()
+        callsign = _normalize_callsign(ac.get("callsign_raw") or ac.get("callsign"))
+        if not icao24 or not callsign:
+            continue
+        if ac.get("route_origin"):
+            continue  # already enriched
+        # Skip aircraft we recently checked and suppressed (no useful
+        # data available right now); they'll be retried after the
+        # recheck interval.
+        checked_at = ac.get("route_checked_at")
+        if checked_at and (now - float(checked_at)) < ROUTE_RECHECK_INTERVAL_SEC:
+            continue
+        if _mark_route_inflight(callsign):
             to_submit.append((icao24, callsign))
 
     for icao24, callsign in to_submit:
@@ -350,7 +360,12 @@ def handle_pin_flight(data):
     icao24 = (data.get("icao24") or "").strip()
     if not callsign or not icao24 or config.MOCK_MODE:
         return
-    enrichment = _build_route_enrichment(icao24, callsign)
+    if not _mark_route_inflight(callsign):
+        return
+    try:
+        enrichment = _build_route_enrichment(icao24, callsign)
+    finally:
+        _clear_route_inflight(callsign)
 
     # Persist enrichment into state manager's active aircraft (survives poll cycles)
     applied = state_mgr.enrich_active(icao24, enrichment, expected_callsign=callsign)

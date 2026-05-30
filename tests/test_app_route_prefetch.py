@@ -10,6 +10,11 @@ import app as flight_app  # noqa: E402
 from state_manager import AircraftStateManager  # noqa: E402
 
 
+def _clear_route_state():
+    with flight_app._route_inflight_lock:
+        flight_app._route_inflight.clear()
+
+
 def _active_aircraft(callsign="SWA1234"):
     return {
         "icao24": "a1b2c3",
@@ -25,6 +30,7 @@ def _active_aircraft(callsign="SWA1234"):
 
 
 def test_route_prefetch_emits_updated_state_immediately(monkeypatch):
+    _clear_route_state()
     mgr = AircraftStateManager()
     mgr.update([_active_aircraft()])
     monkeypatch.setattr(flight_app, "state_mgr", mgr)
@@ -50,6 +56,7 @@ def test_route_prefetch_emits_updated_state_immediately(monkeypatch):
 
 
 def test_pin_flight_uses_reconciler_to_suppress_stale_circular_route(monkeypatch):
+    _clear_route_state()
     mgr = AircraftStateManager()
     mgr.update([_active_aircraft("JIA5458")])
     monkeypatch.setattr(flight_app, "state_mgr", mgr)
@@ -76,3 +83,18 @@ def test_pin_flight_uses_reconciler_to_suppress_stale_circular_route(monkeypatch
     assert state["display"].get("route_destination") in (None, "")
     assert state["display"]["route_checked_at"] is not None
     emit.assert_called_once()
+
+
+def test_pin_flight_skips_duplicate_inflight_lookup(monkeypatch):
+    _clear_route_state()
+    with flight_app._route_inflight_lock:
+        flight_app._route_inflight.add("UAL1764")
+    build = Mock()
+    monkeypatch.setattr(flight_app, "_build_route_enrichment", build)
+
+    try:
+        flight_app.handle_pin_flight({"icao24": "a05dd8", "callsign": "UAL1764"})
+    finally:
+        _clear_route_state()
+
+    build.assert_not_called()
