@@ -33,6 +33,10 @@ TAKEOFF_ALT_THRESHOLD_M = 1500
 # climb. Still tight enough that 200+nm-apart airports (e.g. MCI vs BNA)
 # never falsely match.
 AIRPORT_MATCH_NM = 15.0
+# Minimum altitude change (metres) between the track start and a slightly
+# later point needed to call the captured phase a climb or descent. Below
+# this we treat the trend as ambiguous ("unknown").
+PHASE_ALT_DELTA_M = 100.0
 
 
 def _haversine_nm(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -75,6 +79,54 @@ def find_takeoff_point(path) -> tuple[float, float] | None:
     return (float(lat), float(lon))
 
 
+def compute_track_phase(path) -> str:
+    """Classify the captured phase of flight near the track start.
+
+    The track-start coordinate (see :func:`find_takeoff_point`) sits near one
+    of the canonical route's airports, but on its own it can't tell us whether
+    that airport is the ORIGIN (we caught the climb-out) or the DESTINATION
+    (OpenSky only picked the plane up on descent, common for flights arriving
+    at an airport near the viewer).
+
+    We disambiguate by the altitude trend right after the start: comparing the
+    first usable altitude against a slightly later one.
+
+    Returns:
+        "climb"   — gaining altitude → start airport is the origin.
+        "descent" — losing altitude → start airport is the destination.
+        "unknown" — flat / insufficient / missing data.
+    """
+    if not path or len(path) < 2:
+        return "unknown"
+
+    def _alt(p):
+        try:
+            return p[3]
+        except (IndexError, TypeError):
+            return None
+
+    first_alt = _alt(path[0])
+    if first_alt is None:
+        return "unknown"
+
+    # Use the furthest valid altitude within the first few points so a single
+    # flat pair doesn't mask the trend, while staying close to the start so a
+    # full climb-cruise-descent track is judged by its departure end.
+    later_alt = None
+    for p in path[1:5]:
+        a = _alt(p)
+        if a is not None:
+            later_alt = a
+    if later_alt is None:
+        return "unknown"
+
+    if later_alt - first_alt >= PHASE_ALT_DELTA_M:
+        return "climb"
+    if first_alt - later_alt >= PHASE_ALT_DELTA_M:
+        return "descent"
+    return "unknown"
+
+
 def _airport_code(ap: dict) -> str:
     return (ap.get("iata") or ap.get("icao") or "").strip()
 
@@ -93,8 +145,18 @@ def _is_circular(airports: list[dict]) -> bool:
 
 
 def reconcile_route(adsb_route: dict | None,
-                    takeoff_point: tuple[float, float] | None) -> dict:
+                    takeoff_point: tuple[float, float] | None,
+                    phase: str = "unknown") -> dict:
     """Combine canonical adsb.lol data with track-derived takeoff coords.
+
+    Args:
+        adsb_route: canonical route dict from adsb.lol (has an ``airports``
+            list), or None.
+        takeoff_point: (lat, lon) of the track start near an airport, or None.
+        phase: "climb" | "descent" | "unknown" — the altitude trend at the
+            track start (see :func:`compute_track_phase`).  Disambiguates
+            whether the matched airport is the origin (climb) or the
+            destination (descent).
 
     Returns:
         dict with:
@@ -151,15 +213,40 @@ def reconcile_route(adsb_route: dict | None,
         # adsb route doesn't include the actual takeoff airport — stale data.
         return {**blank, "reason": f"track does not match any adsb airport (best {best_dist:.1f}nm)"}
 
-    origin_ap = airports[best_idx]
-    next_idx = best_idx + 1
-    dest_ap = airports[next_idx] if next_idx < len(airports) else None
+    # The matched airport is closest to where OpenSky first saw the plane at
+    # low altitude. Whether that airport is the origin or the destination
+    # depends on the captured phase of flight:
+    #   - climb   → plane is leaving it          → it's the ORIGIN, next leg is dest.
+    #   - descent → plane is arriving at it       → it's the DESTINATION, prev leg is origin.
+    #   - unknown → fall back to position: matching the FINAL airport almost
+    #               always means an arrival (track caught on descent near the
+    #               viewer's home airport); anything earlier means a departure.
+    last_idx = len(airports) - 1
+    if phase == "descent":
+        origin_idx, dest_idx = best_idx - 1, best_idx
+    elif phase == "climb":
+        origin_idx, dest_idx = best_idx, best_idx + 1
+    elif best_idx == last_idx:
+        origin_idx, dest_idx = best_idx - 1, best_idx
+    else:
+        origin_idx, dest_idx = best_idx, best_idx + 1
+
+    if origin_idx < 0 or dest_idx > last_idx:
+        # Contradictory signal: descending into the scheduled origin, or
+        # climbing out of the scheduled final destination. The schedule is
+        # likely stale/reversed and we can't infer the missing leg, so we'd
+        # rather show nothing than guess.
+        return {**blank,
+                "reason": f"phase={phase} matched airports[{best_idx}] with no opposite leg ({best_dist:.1f}nm)"}
+
+    origin_ap = airports[origin_idx]
+    dest_ap = airports[dest_idx]
 
     return {
         "origin": _airport_code(origin_ap),
-        "destination": _airport_code(dest_ap) if dest_ap else "",
+        "destination": _airport_code(dest_ap),
         "origin_name": _airport_name(origin_ap),
-        "destination_name": _airport_name(dest_ap) if dest_ap else "",
+        "destination_name": _airport_name(dest_ap),
         "confidence": "high",
-        "reason": f"track matched airports[{best_idx}] ({best_dist:.1f}nm)",
+        "reason": f"phase={phase} matched airports[{best_idx}] → {origin_idx}->{dest_idx} ({best_dist:.1f}nm)",
     }

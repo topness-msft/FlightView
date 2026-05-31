@@ -26,7 +26,7 @@ from adsbx_client import ADSBXClient
 from adsblol_client import AdsbLolClient
 from state_manager import AircraftStateManager
 from mock_data import MockDataSource
-from route_reconciler import find_takeoff_point, reconcile_route
+from route_reconciler import find_takeoff_point, reconcile_route, compute_track_phase
 
 logging.basicConfig(
     level=logging.INFO,
@@ -164,14 +164,16 @@ def _build_route_enrichment(icao24: str, callsign: str) -> dict:
     track_path = track_holder.get("path")
     track_ms = track_holder.get("ms", 0)
     takeoff = find_takeoff_point(track_path)
+    phase = compute_track_phase(track_path)
 
-    result = reconcile_route(adsb_route, takeoff)
+    result = reconcile_route(adsb_route, takeoff, phase)
     total_ms = int((time.time() - t0) * 1000)
     _route_log_add(
         "timing", icao24=icao24, callsign=callsign,
         total_ms=total_ms,
         adsb_ms=adsb_ms, adsb_hit=bool(adsb_route),
         track_ms=track_ms, track_hit=bool(track_path),
+        phase=phase,
         origin=result.get("origin") or "", destination=result.get("destination") or "",
         confidence=result.get("confidence"), reason=result.get("reason"),
     )
@@ -668,7 +670,8 @@ def diagnostic_reconcile():
         track = opensky.get_track(icao24)
         t2 = time.time()
         takeoff = find_takeoff_point(track)
-        result = reconcile_route(adsb, takeoff)
+        phase = compute_track_phase(track)
+        result = reconcile_route(adsb, takeoff, phase)
         return jsonify({
             "callsign": callsign,
             "icao24": icao24,
@@ -676,6 +679,7 @@ def diagnostic_reconcile():
             "track_first_point": track[0] if track else None,
             "track_len": len(track) if track else 0,
             "takeoff": takeoff,
+            "phase": phase,
             "reconcile": result,
             "timing": {"adsb_ms": int((t1-t0)*1000), "track_ms": int((t2-t1)*1000)},
         })

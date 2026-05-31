@@ -5,7 +5,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from route_reconciler import find_takeoff_point, reconcile_route  # noqa: E402
+from route_reconciler import find_takeoff_point, reconcile_route, compute_track_phase  # noqa: E402
 
 
 # --- Track helpers ----------------------------------------------------------
@@ -131,13 +131,14 @@ class TestReconcileRoute:
         assert result["destination"] == "IAD"
         assert result["confidence"] == "high"
 
-    def test_track_match_last_airport_has_no_next_leg(self):
-        # Takeoff at terminal airport — no next leg known
+    def test_track_match_last_airport_treated_as_arrival(self):
+        # Track captured near the FINAL airport (no phase signal) — the plane
+        # is arriving there, not departing from it.  Use the preceding leg.
         adsb = {"airports": [CLT, BOS, IAD]}
         takeoff = (38.9445, -77.4558)  # IAD
         result = reconcile_route(adsb, takeoff)
-        assert result["origin"] == "IAD"
-        assert result["destination"] == ""
+        assert result["origin"] == "BOS"
+        assert result["destination"] == "IAD"
         assert result["confidence"] == "high"
 
     def test_track_no_match_suppresses_stale_adsb(self):
@@ -219,3 +220,115 @@ class TestReconcileRoute:
         result = reconcile_route(adsb, takeoff)
         assert result["origin"] == "KXYZ"
         assert result["destination"] == "DFW"
+
+
+# --- Phase-aware reconciliation (climb vs descent) --------------------------
+
+MCO = {"icao": "KMCO", "iata": "MCO", "name": "Orlando International",
+       "location": "Orlando", "lat": 28.4294, "lon": -81.3090}
+
+
+class TestReconcileRoutePhase:
+    def test_descent_into_final_airport_is_arrival(self):
+        # UAL413: scheduled MCO→IAD, OpenSky caught it descending into IAD
+        # (home airport). Track start is near IAD; phase=descent must yield
+        # the full MCO→IAD route, not "IAD → ?".
+        adsb = {"airports": [MCO, IAD]}
+        takeoff = (38.9445, -77.4558)  # IAD
+        result = reconcile_route(adsb, takeoff, "descent")
+        assert result["origin"] == "MCO"
+        assert result["destination"] == "IAD"
+        assert result["confidence"] == "high"
+
+    def test_climb_from_first_airport_is_departure(self):
+        adsb = {"airports": [MCO, IAD]}
+        takeoff = (28.4294, -81.3090)  # MCO
+        result = reconcile_route(adsb, takeoff, "climb")
+        assert result["origin"] == "MCO"
+        assert result["destination"] == "IAD"
+        assert result["confidence"] == "high"
+
+    def test_two_airport_route_same_result_from_either_end(self):
+        # Robustness: matching either endpoint of a 2-airport route gives A→B.
+        adsb = {"airports": [MCO, IAD]}
+        near_mco = reconcile_route(adsb, (28.4294, -81.3090))  # unknown phase
+        near_iad = reconcile_route(adsb, (38.9445, -77.4558))  # unknown phase
+        assert (near_mco["origin"], near_mco["destination"]) == ("MCO", "IAD")
+        assert (near_iad["origin"], near_iad["destination"]) == ("MCO", "IAD")
+
+    def test_descent_into_scheduled_origin_suppresses(self):
+        # Contradictory: descending into the scheduled origin (no prior leg).
+        adsb = {"airports": [MCO, IAD]}
+        takeoff = (28.4294, -81.3090)  # MCO
+        result = reconcile_route(adsb, takeoff, "descent")
+        assert result["confidence"] == "suppress"
+        assert result["origin"] == ""
+
+    def test_climb_out_of_final_airport_suppresses(self):
+        # Contradictory: climbing out of the scheduled final airport.
+        adsb = {"airports": [MCO, IAD]}
+        takeoff = (38.9445, -77.4558)  # IAD
+        result = reconcile_route(adsb, takeoff, "climb")
+        assert result["confidence"] == "suppress"
+        assert result["destination"] == ""
+
+    def test_descent_picks_arrival_leg_of_multi_leg(self):
+        # CLT→BOS→IAD, descending into BOS (middle) → arriving BOS from CLT.
+        adsb = {"airports": [CLT, BOS, IAD]}
+        takeoff = (42.3656, -71.0096)  # BOS
+        result = reconcile_route(adsb, takeoff, "descent")
+        assert result["origin"] == "CLT"
+        assert result["destination"] == "BOS"
+
+    def test_climb_picks_departure_leg_of_multi_leg(self):
+        # CLT→BOS→IAD, climbing out of BOS (middle) → departing BOS to IAD.
+        adsb = {"airports": [CLT, BOS, IAD]}
+        takeoff = (42.3656, -71.0096)  # BOS
+        result = reconcile_route(adsb, takeoff, "climb")
+        assert result["origin"] == "BOS"
+        assert result["destination"] == "IAD"
+
+
+class TestComputeTrackPhase:
+    def test_climbing_track_is_climb(self):
+        path = [
+            (1000, 28.43, -81.31, 0, 30, True),
+            (1100, 28.50, -81.20, 800, 30, False),
+            (1200, 28.60, -81.10, 2000, 30, False),
+        ]
+        assert compute_track_phase(path) == "climb"
+
+    def test_descending_track_is_descent(self):
+        path = [
+            (1000, 38.80, -77.60, 1400, 90, False),
+            (1100, 38.88, -77.52, 600, 90, False),
+            (1200, 38.94, -77.46, 100, 90, False),
+        ]
+        assert compute_track_phase(path) == "descent"
+
+    def test_level_track_is_unknown(self):
+        path = [
+            (1000, 40.0, -75.0, 1000, 90, False),
+            (1100, 40.1, -74.9, 1010, 90, False),
+        ]
+        assert compute_track_phase(path) == "unknown"
+
+    def test_empty_or_single_point_is_unknown(self):
+        assert compute_track_phase([]) == "unknown"
+        assert compute_track_phase(None) == "unknown"
+        assert compute_track_phase([(1000, 40.0, -75.0, 500, 90, False)]) == "unknown"
+
+    def test_missing_first_altitude_is_unknown(self):
+        path = [
+            (1000, 40.0, -75.0, None, 90, False),
+            (1100, 40.1, -74.9, 800, 90, False),
+        ]
+        assert compute_track_phase(path) == "unknown"
+
+    def test_skips_missing_later_altitudes(self):
+        path = [
+            (1000, 28.43, -81.31, 100, 30, False),
+            (1100, 28.50, -81.20, None, 30, False),
+            (1200, 28.60, -81.10, 1500, 30, False),
+        ]
+        assert compute_track_phase(path) == "climb"
