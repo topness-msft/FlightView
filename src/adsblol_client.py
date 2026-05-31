@@ -3,7 +3,14 @@
 Enriches aircraft data with route information (origin/destination)
 using the free, key-less adsb.lol community route database.
 
-Endpoint: https://api.adsb.lol/api/0/route/{callsign}
+Endpoint: https://vrs-standing-data.adsb.lol/routes/{CS[:2]}/{CALLSIGN}.json
+where CS[:2] is the first two characters of the callsign.
+
+This hits the static route data host directly. The previous endpoint
+(https://api.adsb.lol/api/0/route/{callsign}) is now deprecated: it only
+302-redirects to this static file, and that redirect hop adds ~7-26s of
+latency per lookup. Fetching the static JSON directly returns in ~1-2s.
+
 Returns airport pairs with IATA, ICAO, location (city), and full name.
 """
 
@@ -15,7 +22,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-ADSBLOL_BASE = "https://api.adsb.lol/api/0"
+ADSBLOL_BASE = "https://vrs-standing-data.adsb.lol/routes"
 
 
 class AdsbLolClient:
@@ -23,7 +30,7 @@ class AdsbLolClient:
 
     CACHE_TTL_SEC = 600       # 10 min cache for successful lookups
     NEG_CACHE_TTL_SEC = 600   # 10 min cache for definitive no-route responses
-    REQUEST_TIMEOUT_SEC = 6   # tolerant of slow upstream; async prefetch so it doesn't block
+    REQUEST_TIMEOUT_SEC = 6   # static host responds in ~1-2s; 6s leaves margin
 
     def __init__(self) -> None:
         self.enabled = True
@@ -68,8 +75,8 @@ class AdsbLolClient:
                 }
 
         try:
-            url = f"{ADSBLOL_BASE}/route/{callsign}"
-            resp = requests.get(url, timeout=self.REQUEST_TIMEOUT_SEC, allow_redirects=True)
+            url = f"{ADSBLOL_BASE}/{callsign[:2]}/{callsign}.json"
+            resp = requests.get(url, timeout=self.REQUEST_TIMEOUT_SEC)
             if resp.status_code == 404:
                 logger.debug("adsb.lol has no route for %s", callsign)
                 with self._lock:

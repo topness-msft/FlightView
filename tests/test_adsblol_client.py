@@ -56,6 +56,17 @@ def test_get_route_returns_iata_pair():
     assert route["aircraft_type"] == ""
 
 
+def test_get_route_hits_static_host_by_callsign_prefix():
+    """Routes are fetched directly from the static vrs-standing-data host,
+    pathed by the first two chars of the callsign (the deprecated
+    api.adsb.lol redirect endpoint is bypassed to avoid ~26s latency)."""
+    client = AdsbLolClient()
+    with patch("adsblol_client.requests.get", return_value=_mock_response(200, SAMPLE_PAYLOAD)) as m:
+        client.get_route("BAW290")
+    called_url = m.call_args.args[0]
+    assert called_url == "https://vrs-standing-data.adsb.lol/routes/BA/BAW290.json"
+
+
 def test_get_route_404_returns_none():
     client = AdsbLolClient()
     with patch("adsblol_client.requests.get", return_value=_mock_response(404)):
