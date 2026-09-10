@@ -134,6 +134,73 @@ Mock mode generates 4–7 simulated aircraft with realistic behaviors (approachi
 
 No API keys required. Route enrichment uses [adsb.lol](https://adsb.lol)'s free community route database — origin → destination is looked up by callsign when an aircraft enters the near zone, with a 10-minute cache per callsign.
 
+## ESP32 companion display
+
+The Waveshare **ESP32-S3-Touch-LCD-7B** (1024×600 touchscreen model) can run a
+read-only native version of the modern theme. Firmware and USB setup instructions
+are in [`firmware/flightview-7b`](firmware/flightview-7b/README.md). The ESP32 is a
+microcontroller, not a browser: the Pi keeps tracking and enriching flights, and
+the companion renders its state using LVGL.
+
+The firmware source is included, but its ESP-IDF target build and physical-board
+bring-up are still pending. Do not treat the host protocol probe as proof that
+the display firmware is ready to flash.
+
+The Pi exposes **`GET /api/v1/display`** on its existing HTTP port, normally
+`http://<pi-address>:5000/api/v1/display`. Use a reserved LAN address or resolvable
+hostname. No extra process, provider key, or receiver is needed on the companion.
+The endpoint reads memory only: polling it does not trigger additional ADS-B or
+route requests. Existing `/api/state` remains a diagnostic endpoint.
+
+The companion polls once per second. A non-null `display` selects the overhead
+detail screen; null selects radar/list. It follows the Pi's automatic selection,
+not browser-local pinned flights, theme choices, or settings screens. It receives
+up to 32 nearest aircraft and shows up to 10 list entries, with total counts when
+the display is limited.
+
+This endpoint has **no authentication** and is intended only for a trusted home
+LAN. Do not expose or port-forward FlightView to the internet. The read-only
+companion does not protect the existing settings/update endpoints.
+
+### Display feed contract (version 1)
+
+| Field | Meaning |
+|-------|---------|
+| `schema_version` | `1`; clients must reject unsupported versions |
+| `display` | Authoritative selected flight, or `null` |
+| `aircraft` | One distance-ordered array shared by radar/list, at most 32 entries |
+| `counts` | `total_aircraft`, `nearby_aircraft`, `returned_aircraft`, `truncated` |
+| `zones` | `near_radius_ft` and `radar_radius_ft`; no home coordinates |
+| `freshness` | `source_state_observed_at`, `state_age_ms`, `stale_after_ms`, `is_initial`, `is_stale` |
+| `health` | Safe `status`, `data_source`, and `message`; no raw receiver errors |
+| `server_version` | Optional diagnostic revision; not the schema version |
+
+Each aircraft contains `icao24`, `callsign`, `flight_display`, `airline`,
+`typecode`, `aircraft_type`, `registration`, route airport/city fields,
+`altitude_ft`, `velocity_kts`, `distance_ft`, `vertical_rate_fpm`, `bearing`,
+`heading`, `compass`, and `direction`. Unknown text is empty; unknown numeric
+values are `null`, distinct from zero. Bearing and heading are degrees clockwise
+from north. List summaries may omit registration data, represented as an empty
+string. Missing routes must not be presented as a known itinerary.
+
+Observation age advances from the last completed aircraft-state update using
+the Pi's monotonic clock. Neither GET requests nor route-only enrichment renews
+it. The stale threshold is the greater of 10 seconds and three source polling
+intervals. Before the first completed observation, the timestamp/age are null
+and the feed is initial/stale. A successful empty observation is a fresh empty
+sky. On transport failure, retain the last screen with an offline warning; on
+source error or excessive age, mark the data accordingly. The ESP32 advances
+received age locally and does not need internet clock synchronization.
+
+The current OpenSky client can return an empty observation on a provider error;
+this feed preserves that existing behavior rather than adding outage detection.
+
+Responses use `Cache-Control: no-store` and a hard **64 KiB body limit**. Text is
+bounded by UTF-8 bytes (see `TEXT_LIMITS` in `src/display_projection.py`), with
+control characters removed. Invalid display configuration or a serialization
+bound violation returns HTTP 503 with `{"error":"Display feed unavailable"}`;
+clients must not replace their last valid model with an error response.
+
 ## License
 
 MIT
