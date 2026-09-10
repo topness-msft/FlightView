@@ -20,12 +20,12 @@ boards is gated by deploy-runner.
 - Vendored official Waveshare board components are from commit
   `c652c902db607f7ffb376257393cfd7657aa6428`; license is Apache-2.0.
 
-No hardware-tested claim is made yet. On 2026-09-10, this Windows workstation
-used official ESP-IDF `v5.5.1` installed under
+The touchscreen 7B has been brought up with the native modern UI, live LAN feed,
+and the larger detail typography. The reproducible Windows build uses official
+ESP-IDF `v5.5.1` installed under
 `%USERPROFILE%\.espressif\frameworks\esp-idf-v5.5.1`; Docker CLI was present,
 but the Docker Desktop Linux daemon was unavailable. The application, SDK test
-application, and unmodified vendor baseline compiled successfully. Physical
-flashing and real-panel evidence remain separate gates.
+application, and unmodified vendor baseline compile with that toolchain.
 
 The reproducible user-scope SDK setup used for the software build gate was:
 
@@ -199,9 +199,7 @@ UI messages; Wi-Fi event callbacks only update connectivity flags. Both tasks
 use the same 64-bit `esp_timer` clock, and the stale warning advances between
 responses rather than relying only on the server's last stale flag.
 
-## Pending hardware evidence
-
-Before calling the firmware complete on hardware:
+## Bringing up another board
 
 See `FIRST_USB_HOOKUP.md` for the exact first-board checklist.
 

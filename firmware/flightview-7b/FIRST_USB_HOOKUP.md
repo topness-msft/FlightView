@@ -1,8 +1,7 @@
 # First USB hookup checklist
 
-Physical validation is intentionally deferred until the Waveshare
-ESP32-S3-Touch-LCD-7B board is available. Do not flash from this checklist until
-deploy-runner/owner coordination confirms the board, cable, and COM port.
+Use this checklist for the Waveshare ESP32-S3-Touch-LCD-7B. Confirm the board,
+USB data cable, and detected COM port before flashing.
 
 ## Before plugging in
 
@@ -67,6 +66,10 @@ live API probe bytes=<65536-or-less> url=<url>
 
 1. Enumerate ports after plugging in the USB data cable. Expected: a new non-
    Bluetooth COM port appears.
+   If native USB is absent, unplug USB, hold BOOT while reconnecting, then
+   release BOOT. After an upload, if the panel stays blank or serial reports
+   `waiting for download`, remove power for five seconds and reconnect without
+   touching BOOT. A successful flash write is not the same as a normal app boot.
 2. Flash and observe the unmodified
    [official Waveshare LVGL8 7B demo](https://github.com/waveshareteam/ESP32-S3-Touch-LCD-7B/tree/c652c902db607f7ffb376257393cfd7657aa6428/examples/ESP-IDF/13_lvgl_v8_demo)
    first. Use the 7B example, not the original 800x480 board's firmware.

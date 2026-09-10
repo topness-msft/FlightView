@@ -142,10 +142,11 @@ are in [`firmware/flightview-7b`](firmware/flightview-7b/README.md). The ESP32 i
 microcontroller, not a browser: the Pi keeps tracking and enriching flights, and
 the companion renders its state using LVGL.
 
-The firmware and SDK test application build with ESP-IDF 5.5.1; the resolved
-component versions are committed in the firmware lockfile. Physical-board
-bring-up is still pending. A successful build or host protocol probe is not
-proof of correct rendering or Wi-Fi operation on the actual display.
+The firmware and SDK test application use ESP-IDF 5.5.1, with resolved component
+versions committed in the firmware lockfile. The detail view prioritizes large,
+bold carrier, airframe, and airport-code text for viewing across a room.
+Follow the first-USB guide when bringing up another board; a successful build
+alone does not establish correct panel wiring or Wi-Fi configuration.
 
 The Pi exposes **`GET /api/v1/display`** on its existing HTTP port, normally
 `http://<pi-address>:5000/api/v1/display`. Use a reserved LAN address or resolvable
