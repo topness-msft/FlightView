@@ -276,8 +276,46 @@ static void test_depth_and_saturating_age(void)
     assert(flightview_model_age_ms(&model, 9999) == 1200);
 }
 
+static void test_full_radar_payload_and_body_boundary(void)
+{
+    static char body[FV_HTTP_BODY_MAX_BYTES + 1];
+    static flightview_model_t model;
+    const char *display_start = strstr(payload, "\"display\":") + strlen("\"display\":");
+    const char *display_end = strstr(display_start, ",\"aircraft\":");
+    size_t aircraft_len = (size_t)(display_end - display_start);
+    size_t used = (size_t)snprintf(body, sizeof(body), "{\"schema_version\":1,\"display\":");
+    memcpy(body + used, display_start, aircraft_len);
+    used += aircraft_len;
+    used += (size_t)snprintf(body + used, sizeof(body) - used, ",\"aircraft\":[");
+    for (int i = 0; i < FV_MAX_AIRCRAFT; i++) {
+        if (i != 0) body[used++] = ',';
+        memcpy(body + used, display_start, aircraft_len);
+        used += aircraft_len;
+    }
+    used += (size_t)snprintf(body + used, sizeof(body) - used,
+        "],\"counts\":{\"total_aircraft\":40,\"nearby_aircraft\":1,"
+        "\"returned_aircraft\":32,\"truncated\":true},"
+        "\"zones\":{\"near_radius_ft\":3000,\"radar_radius_ft\":60000},"
+        "\"freshness\":{\"source_state_observed_at\":1700000000,\"state_age_ms\":0,"
+        "\"stale_after_ms\":15000,\"is_initial\":false,\"is_stale\":false},"
+        "\"health\":{\"status\":\"ok\",\"data_source\":\"rtlsdr\",\"message\":\"\"}}");
+    assert(used < FV_HTTP_BODY_MAX_BYTES);
+    for (uint64_t i = 0; i < 2000; i++) {
+        assert(flightview_parse_display_payload(body, used, i * 1000, 10, &model) == FV_PARSE_OK);
+        assert(model.aircraft_count == FV_MAX_AIRCRAFT);
+        assert(model.counts.truncated);
+        assert(model.has_display);
+        assert(strcmp(model.aircraft[31].aircraft_type, "Boeing 737 MAX 9") == 0);
+    }
+    memset(body + used, ' ', FV_HTTP_BODY_MAX_BYTES - used);
+    assert(flightview_parse_display_payload(body, FV_HTTP_BODY_MAX_BYTES, 0, 0, &model) == FV_PARSE_OK);
+    body[FV_HTTP_BODY_MAX_BYTES] = ' ';
+    assert(flightview_parse_display_payload(body, sizeof(body), 0, 0, &model) == FV_PARSE_ERR_BODY_TOO_LARGE);
+}
+
 int main(void)
 {
+    test_full_radar_payload_and_body_boundary();
     test_strict_json_and_metadata();
     test_depth_and_saturating_age();
     test_parse_rich_payload();
