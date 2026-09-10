@@ -126,6 +126,8 @@ Convenience test-app build wrapper, which never flashes:
 ```
 
 The test wrapper defaults to `b\test` for the same Windows path-length reason.
+The SDK test app uses `test\sdkconfig.defaults` so its generated image matches
+the board class used by the main app: ESP32-S3, 16 MB flash, and PSRAM enabled.
 
 To check parser compatibility against a running FlightView server without
 hardware:
