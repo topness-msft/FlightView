@@ -1,9 +1,12 @@
 #include "unity.h"
 
+#include <stdio.h>
 #include <string.h>
 
 #include "flightview_protocol.h"
 #include "flightview_radar.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 TEST_CASE("display payload parses selected aircraft without local choice", "[flightview]")
 {
@@ -32,7 +35,14 @@ TEST_CASE("radar cardinal projection matches screen compass", "[flightview]")
 
 void app_main(void)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
+    vTaskDelay(pdMS_TO_TICKS(3000));
     UNITY_BEGIN();
     unity_run_all_tests();
-    UNITY_END();
+    const int failures = UNITY_END();
+    while (true) {
+        printf("FLIGHTVIEW_UNITY_RESULT tests=%u failures=%d ignored=%u\n",
+               (unsigned)Unity.NumberOfTests, failures, (unsigned)Unity.TestIgnores);
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
 }

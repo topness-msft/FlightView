@@ -128,6 +128,10 @@ Convenience test-app build wrapper, which never flashes:
 The test wrapper defaults to `b\test` for the same Windows path-length reason.
 The SDK test app uses `test\sdkconfig.defaults` so its generated image matches
 the board class used by the main app: ESP32-S3, 16 MB flash, and PSRAM enabled.
+Its primary console is native USB Serial/JTAG. Tests run once after a short
+startup delay, then repeat their final counts every two seconds so reconnecting
+the serial monitor cannot lose the result. The diagnostic image intentionally
+does not initialize the LCD.
 
 To check parser compatibility against a running FlightView server without
 hardware:
