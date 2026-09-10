@@ -12,6 +12,9 @@ This project vendors the board support components `gpio`, `i2c`, `io_extension`,
 
 The vendored files are used to preserve the 7B board RGB timings, GT911 touch
 startup, I2C expander, and backlight behavior from the official LVGL 8 example.
+The companion's RGB startup explicitly selects USB on EXIO5 before toggling
+touch reset, instead of leaving the vendor's all-high output shadow to select
+the alternate interface. The remaining board initialization is unchanged.
 
 ## Espressif and LVGL components
 

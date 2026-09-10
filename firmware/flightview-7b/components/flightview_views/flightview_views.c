@@ -273,6 +273,8 @@ static void create_multi(lv_obj_t *root)
         lv_obj_align(g_views.list_text[i][2], LV_ALIGN_CENTER, 15, 0);
         g_views.list_text[i][3] = label(row, &lv_font_montserrat_14, C_MD_DIM);
         lv_obj_set_width(g_views.list_text[i][3], 120);
+        lv_obj_set_height(g_views.list_text[i][3], 36);
+        lv_label_set_long_mode(g_views.list_text[i][3], LV_LABEL_LONG_CLIP);
         lv_obj_align(g_views.list_text[i][3], LV_ALIGN_RIGHT_MID, -10, 0);
         lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
     }
@@ -427,7 +429,9 @@ static void update_status(void)
     } else {
         snprintf(text, sizeof(text), "%s | %.80s | age %" PRIu64 "s | %d aircraft%s",
                  prefix,
-                 g_views.model.health.message[0] ? g_views.model.health.message : "display feed",
+                 g_views.model.transport_status != FV_TRANSPORT_OK
+                     ? g_views.model.transport_message
+                     : (g_views.model.health.message[0] ? g_views.model.health.message : "display feed"),
                  age_s,
                  g_views.model.counts.total_aircraft,
                  g_views.model.counts.truncated ? " | truncated" : "");

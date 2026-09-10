@@ -105,6 +105,8 @@ esp_err_t waveshare_esp32_s3_rgb_lcd_init(esp_lv_adapter_tear_avoid_mode_t tear_
 
     DEV_I2C_Port port = DEV_I2C_Init();
     IO_EXTENSION_Init();
+    // Keep native USB routed while the companion initializes touch/backlight.
+    IO_EXTENSION_Output(IO_EXTENSION_IO_5, 0);
     DEV_GPIO_Mode(EXAMPLE_TOUCH_INT_GPIO, GPIO_MODE_INPUT_OUTPUT);
     IO_EXTENSION_Output(IO_EXTENSION_IO_1, 0);
     vTaskDelay(pdMS_TO_TICKS(100));

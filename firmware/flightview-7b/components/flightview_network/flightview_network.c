@@ -132,18 +132,27 @@ static esp_err_t fetch_once(void)
 
     esp_err_t err = esp_http_client_open(client, 0);
     if (err != ESP_OK) {
+        char message[96];
+        snprintf(message, sizeof(message), "Connect: %s, socket %d",
+                 esp_err_to_name(err), esp_http_client_get_errno(client));
+        ESP_LOGW(TAG, "%s", message);
         esp_http_client_cleanup(client);
         heap_caps_free(body);
-        post_transport(FV_TRANSPORT_HTTP_ERROR, "Host unreachable");
+        post_transport(FV_TRANSPORT_HTTP_ERROR, message);
         return err;
     }
 
     int64_t content_length = esp_http_client_fetch_headers(client);
     if (content_length < 0 || content_length > FV_HTTP_BODY_MAX_BYTES) {
+        char message[96];
+        snprintf(message, sizeof(message), "Headers: HTTP %d, length %lld, socket %d",
+                 esp_http_client_get_status_code(client), (long long)content_length,
+                 esp_http_client_get_errno(client));
+        ESP_LOGW(TAG, "%s", message);
         esp_http_client_close(client);
         esp_http_client_cleanup(client);
         heap_caps_free(body);
-        post_transport(FV_TRANSPORT_HTTP_ERROR, "Invalid HTTP response length");
+        post_transport(FV_TRANSPORT_HTTP_ERROR, message);
         return ESP_ERR_INVALID_RESPONSE;
     }
 
@@ -169,6 +178,7 @@ static esp_err_t fetch_once(void)
     }
     const int status = esp_http_client_get_status_code(client);
     const bool complete = esp_http_client_is_complete_data_received(client);
+    const int socket_errno = esp_http_client_get_errno(client);
     esp_http_client_close(client);
     esp_http_client_cleanup(client);
 
@@ -179,8 +189,14 @@ static esp_err_t fetch_once(void)
     }
     if (err != ESP_OK || status != 200 || !complete ||
         monotonic_ms() - start_ms > FV_HTTP_TIMEOUT_MS) {
+        char message[96];
+        snprintf(message, sizeof(message), "HTTP %d: %d/%lld bytes, %s, %llums, socket %d",
+                 status, total, (long long)content_length,
+                 complete ? esp_err_to_name(err) : "incomplete",
+                 (unsigned long long)(monotonic_ms() - start_ms), socket_errno);
+        ESP_LOGW(TAG, "%s", message);
         heap_caps_free(body);
-        post_transport(FV_TRANSPORT_HTTP_ERROR, "HTTP error");
+        post_transport(FV_TRANSPORT_HTTP_ERROR, message);
         return err != ESP_OK ? err : ESP_FAIL;
     }
     body[total] = '\0';
