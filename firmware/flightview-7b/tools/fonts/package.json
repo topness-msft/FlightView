@@ -1,0 +1,13 @@
+{
+  "name": "flightview-7b-font-tools",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reproducible LVGL 8 font generation for the FlightView 7B native detail view.",
+  "scripts": {
+    "generate": "node generate-flightview-fonts.mjs",
+    "test": "node generate-flightview-fonts.mjs --check"
+  },
+  "dependencies": {
+    "lv_font_conv": "1.5.3"
+  }
+}

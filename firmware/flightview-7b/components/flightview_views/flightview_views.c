@@ -1,6 +1,7 @@
 #include "flightview_views.h"
 
 #include <inttypes.h>
+#include <ctype.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -10,7 +11,12 @@
 #include "esp_lv_adapter.h"
 #include "flightview_protocol.h"
 #include "flightview_radar.h"
+#include "flightview_fonts.h"
 #include "lvgl.h"
+
+#if !LV_USE_FONT_COMPRESSED
+#error "FlightView detail fonts require CONFIG_LV_USE_FONT_COMPRESSED=y"
+#endif
 
 #define C_MD_BG 0x0F172A
 #define C_MD_BG_DARK 0x0B1120
@@ -62,7 +68,12 @@ typedef struct {
     lv_obj_t *detail_dest;
     lv_obj_t *detail_dest_city;
     lv_obj_t *detail_stats[4];
+    lv_obj_t *detail_stat_boxes[4];
     lv_obj_t *detail_footer;
+    lv_obj_t *detail_heading;
+    bool detail_layout_set;
+    bool detail_has_route;
+    const lv_font_t *detail_carrier_font;
 } flightview_views_t;
 
 static flightview_views_t g_views;
@@ -90,11 +101,16 @@ static void format_opt(char *dst, size_t dst_len, flightview_optional_float_t v,
         snprintf(dst, dst_len, "-");
         return;
     }
-    if (unit != NULL && unit[0] != '\0') {
-        snprintf(dst, dst_len, "%.0f %s", (double)v.value, unit);
-    } else {
-        snprintf(dst, dst_len, "%.0f", (double)v.value);
+    char digits[32], grouped[48];
+    snprintf(digits, sizeof(digits), "%.0f", (double)v.value);
+    size_t length = strlen(digits), used = 0;
+    size_t first_digit = digits[0] == '-' ? 1 : 0;
+    for (size_t i = 0; i < length; i++) {
+        if (i > first_digit && (length - i) % 3 == 0) grouped[used++] = ',';
+        grouped[used++] = digits[i];
     }
+    grouped[used] = '\0';
+    snprintf(dst, dst_len, "%s%s%s", grouped, unit && unit[0] ? " " : "", unit ? unit : "");
 }
 
 static void format_signed(char *dst, size_t dst_len, flightview_optional_float_t v)
@@ -104,6 +120,43 @@ static void format_signed(char *dst, size_t dst_len, flightview_optional_float_t
         return;
     }
     snprintf(dst, dst_len, "%+.0f", (double)v.value);
+}
+
+static bool same_ascii_text(const char *left, const char *right)
+{
+    while (*left && *right) {
+        if (tolower((unsigned char)*left++) != tolower((unsigned char)*right++)) return false;
+    }
+    return *left == *right;
+}
+
+static void short_airline(char *dst, size_t capacity, const char *airline)
+{
+    snprintf(dst, capacity, "%s", airline[0] ? airline : "Unknown");
+    size_t length = strlen(dst);
+    while (length && dst[length - 1] == ' ') dst[--length] = '\0';
+    const char *suffixes[] = {" Airlines", " Airline", " Air Lines", " Air Line"};
+    for (size_t i = 0; i < sizeof(suffixes) / sizeof(suffixes[0]); i++) {
+        size_t suffix_length = strlen(suffixes[i]);
+        if (length > suffix_length && same_ascii_text(dst + length - suffix_length, suffixes[i])) {
+            dst[length - suffix_length] = '\0';
+            break;
+        }
+    }
+}
+
+static lv_obj_t *plane_mark(lv_obj_t *parent, uint32_t color)
+{
+    static const lv_point_t points[] = {
+        {16, 3}, {18, 13}, {27, 19}, {27, 22}, {18, 18},
+        {18, 25}, {22, 28}, {16, 26}, {10, 28}, {14, 25},
+        {14, 18}, {5, 22}, {5, 19}, {14, 13}, {16, 3},
+    };
+    lv_obj_t *plane = lv_line_create(parent);
+    lv_line_set_points(plane, points, sizeof(points) / sizeof(points[0]));
+    lv_obj_set_style_line_color(plane, lv_color_hex(color), 0);
+    lv_obj_set_style_line_width(plane, 2, 0);
+    return plane;
 }
 
 static uint64_t now_ms(void)
@@ -297,92 +350,132 @@ static void create_detail(lv_obj_t *root)
     lv_obj_set_style_border_width(g_views.detail, 0, 0);
     lv_obj_clear_flag(g_views.detail, LV_OBJ_FLAG_SCROLLABLE);
 
-    g_views.detail_badge = label(g_views.detail, &lv_font_montserrat_24, C_LHR_YELLOW);
+    g_views.detail_badge = lv_obj_create(g_views.detail);
+    lv_obj_set_size(g_views.detail_badge, 36, 36);
     lv_obj_set_style_bg_color(g_views.detail_badge, lv_color_hex(C_LHR_BLACK), 0);
     lv_obj_set_style_bg_opa(g_views.detail_badge, LV_OPA_COVER, 0);
-    lv_obj_set_style_pad_all(g_views.detail_badge, 8, 0);
-    lv_obj_set_style_radius(g_views.detail_badge, 20, 0);
-    lv_obj_align(g_views.detail_badge, LV_ALIGN_TOP_LEFT, 28, 20);
+    lv_obj_set_style_pad_all(g_views.detail_badge, 0, 0);
+    lv_obj_set_style_border_width(g_views.detail_badge, 0, 0);
+    lv_obj_set_style_radius(g_views.detail_badge, LV_RADIUS_CIRCLE, 0);
+    lv_obj_clear_flag(g_views.detail_badge, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_align(g_views.detail_badge, LV_ALIGN_TOP_LEFT, 28, 10);
+    lv_obj_set_pos(plane_mark(g_views.detail_badge, C_LHR_YELLOW), 2, 2);
 
-    lv_obj_t *title = label(g_views.detail, &lv_font_montserrat_24, C_LHR_BLACK);
-    lv_label_set_text(title, "Overhead flight");
-    lv_obj_align(title, LV_ALIGN_TOP_LEFT, 190, 25);
+    lv_obj_t *title = label(g_views.detail, &lv_font_montserrat_20, C_LHR_BLACK);
+    lv_label_set_text(title, "Overhead Flight");
+    lv_obj_align(title, LV_ALIGN_TOP_LEFT, 78, 18);
+
+    static const lv_point_t header_points[] = {{28, 56}, {996, 56}};
+    lv_obj_t *divider = lv_line_create(g_views.detail);
+    lv_line_set_points(divider, header_points, 2);
+    lv_obj_set_style_line_color(divider, lv_color_hex(0xE3B600), 0);
+    lv_obj_set_style_line_width(divider, 2, 0);
 
     g_views.detail_near = label(g_views.detail, &lv_font_montserrat_16, 0x594600);
     lv_obj_set_width(g_views.detail_near, 220);
-    lv_obj_align(g_views.detail_near, LV_ALIGN_TOP_RIGHT, -28, 28);
+    lv_obj_set_style_text_align(g_views.detail_near, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_align(g_views.detail_near, LV_ALIGN_TOP_RIGHT, -28, 20);
 
-    g_views.detail_airline = label(g_views.detail, &lv_font_montserrat_48, C_LHR_BLACK);
-    lv_obj_set_width(g_views.detail_airline, 620);
-    lv_obj_align(g_views.detail_airline, LV_ALIGN_TOP_LEFT, 28, 95);
+    g_views.detail_carrier_font = &fv_outfit_88;
+    g_views.detail_airline = label(g_views.detail, g_views.detail_carrier_font, C_LHR_BLACK);
+    lv_obj_set_size(g_views.detail_airline, 650, 108);
 
-    g_views.detail_typecode = label(g_views.detail, &lv_font_montserrat_48, C_LHR_BLACK);
-    lv_obj_set_width(g_views.detail_typecode, 220);
-    lv_obj_align(g_views.detail_typecode, LV_ALIGN_TOP_RIGHT, -28, 90);
+    g_views.detail_typecode = label(g_views.detail, &fv_mono_80, C_LHR_BLACK);
+    lv_obj_set_size(g_views.detail_typecode, 286, 110);
+    lv_obj_set_style_text_align(g_views.detail_typecode, LV_TEXT_ALIGN_RIGHT, 0);
 
-    g_views.detail_type = label(g_views.detail, &lv_font_montserrat_24, 0x6F5B00);
-    lv_obj_set_width(g_views.detail_type, 360);
-    lv_obj_align(g_views.detail_type, LV_ALIGN_TOP_RIGHT, -28, 145);
+    g_views.detail_type = label(g_views.detail, &fv_outfit_28, 0x6F5B00);
+    lv_obj_set_size(g_views.detail_type, 340, 40);
+    lv_obj_set_style_text_align(g_views.detail_type, LV_TEXT_ALIGN_RIGHT, 0);
 
-    g_views.detail_flight = label(g_views.detail, &lv_font_montserrat_40, C_LHR_BLACK);
-    lv_obj_set_width(g_views.detail_flight, 300);
-    lv_obj_align(g_views.detail_flight, LV_ALIGN_TOP_LEFT, 28, 168);
+    g_views.detail_flight = label(g_views.detail, &fv_mono_40, C_LHR_BLACK);
+    lv_obj_set_size(g_views.detail_flight, 310, 58);
+    lv_obj_set_style_bg_color(g_views.detail_flight, lv_color_hex(0xEFC000), 0);
+    lv_obj_set_style_bg_opa(g_views.detail_flight, LV_OPA_COVER, 0);
+    lv_obj_set_style_pad_hor(g_views.detail_flight, 10, 0);
+    lv_obj_set_style_radius(g_views.detail_flight, 4, 0);
 
     g_views.detail_reg = label(g_views.detail, &lv_font_montserrat_18, 0x6F5B00);
     lv_obj_set_width(g_views.detail_reg, 260);
-    lv_obj_align(g_views.detail_reg, LV_ALIGN_TOP_LEFT, 340, 188);
 
     g_views.detail_route = lv_obj_create(g_views.detail);
     lv_obj_set_style_pad_all(g_views.detail_route, 0, 0);
-    lv_obj_set_size(g_views.detail_route, 968, 132);
-    lv_obj_align(g_views.detail_route, LV_ALIGN_TOP_LEFT, 28, 238);
+    lv_obj_set_size(g_views.detail_route, 968, 182);
+    lv_obj_align(g_views.detail_route, LV_ALIGN_TOP_LEFT, 28, 236);
     lv_obj_set_style_bg_opa(g_views.detail_route, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_color(g_views.detail_route, lv_color_hex(0xE0B400), 0);
     lv_obj_set_style_border_width(g_views.detail_route, 2, 0);
+    lv_obj_set_style_border_side(g_views.detail_route, LV_BORDER_SIDE_TOP | LV_BORDER_SIDE_BOTTOM, 0);
+    lv_obj_set_style_radius(g_views.detail_route, 0, 0);
     lv_obj_clear_flag(g_views.detail_route, LV_OBJ_FLAG_SCROLLABLE);
 
-    g_views.detail_origin = label(g_views.detail_route, &lv_font_montserrat_48, C_LHR_BLACK);
-    lv_obj_set_width(g_views.detail_origin, 190);
-    lv_obj_align(g_views.detail_origin, LV_ALIGN_LEFT_MID, 24, -20);
-    g_views.detail_origin_city = label(g_views.detail_route, &lv_font_montserrat_28, 0x6F5B00);
-    lv_obj_set_width(g_views.detail_origin_city, 340);
-    lv_obj_align(g_views.detail_origin_city, LV_ALIGN_LEFT_MID, 24, 28);
+    g_views.detail_origin = label(g_views.detail_route, &fv_mono_96, C_LHR_BLACK);
+    lv_obj_set_size(g_views.detail_origin, 350, 130);
+    lv_obj_set_style_text_align(g_views.detail_origin, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_pos(g_views.detail_origin, 0, 0);
+    g_views.detail_origin_city = label(g_views.detail_route, &fv_outfit_28, 0x6F5B00);
+    lv_obj_set_size(g_views.detail_origin_city, 350, 36);
+    lv_obj_set_style_text_align(g_views.detail_origin_city, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_pos(g_views.detail_origin_city, 0, 130);
 
-    lv_obj_t *arrow = label(g_views.detail_route, &lv_font_montserrat_32, C_LHR_BLACK);
-    lv_label_set_text(arrow, "-->");
-    lv_obj_center(arrow);
+    lv_obj_set_pos(plane_mark(g_views.detail_route, C_LHR_BLACK), 468, 57);
+    static const lv_point_t route_left[] = {{366, 73}, {453, 73}};
+    static const lv_point_t route_right[] = {{515, 73}, {602, 73}};
+    lv_obj_t *path_left = lv_line_create(g_views.detail_route);
+    lv_obj_t *path_right = lv_line_create(g_views.detail_route);
+    lv_line_set_points(path_left, route_left, 2);
+    lv_line_set_points(path_right, route_right, 2);
+    lv_obj_set_style_line_color(path_left, lv_color_hex(0xB08E00), 0);
+    lv_obj_set_style_line_color(path_right, lv_color_hex(0xB08E00), 0);
+    lv_obj_set_style_line_width(path_left, 2, 0);
+    lv_obj_set_style_line_width(path_right, 2, 0);
 
-    g_views.detail_dest = label(g_views.detail_route, &lv_font_montserrat_48, C_LHR_BLACK);
-    lv_obj_set_width(g_views.detail_dest, 190);
-    lv_obj_align(g_views.detail_dest, LV_ALIGN_RIGHT_MID, -24, -20);
-    g_views.detail_dest_city = label(g_views.detail_route, &lv_font_montserrat_28, 0x6F5B00);
-    lv_obj_set_width(g_views.detail_dest_city, 340);
-    lv_obj_align(g_views.detail_dest_city, LV_ALIGN_RIGHT_MID, -24, 28);
+    g_views.detail_dest = label(g_views.detail_route, &fv_mono_96, C_LHR_BLACK);
+    lv_obj_set_size(g_views.detail_dest, 350, 130);
+    lv_obj_set_style_text_align(g_views.detail_dest, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_pos(g_views.detail_dest, 618, 0);
+    g_views.detail_dest_city = label(g_views.detail_route, &fv_outfit_28, 0x6F5B00);
+    lv_obj_set_size(g_views.detail_dest_city, 350, 36);
+    lv_obj_set_style_text_align(g_views.detail_dest_city, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_pos(g_views.detail_dest_city, 618, 130);
 
-    const char *stat_labels[] = {"ALTITUDE", "SPEED", "DISTANCE", "VERT SPEED (fpm)"};
+    const char *stat_labels[] = {"ALTITUDE", "SPEED", "DISTANCE", "VERT SPEED"};
+    const char *stat_units[] = {"ft", "kts", "ft", "fpm"};
     for (int i = 0; i < 4; i++) {
         lv_obj_t *box = lv_obj_create(g_views.detail);
+        g_views.detail_stat_boxes[i] = box;
         lv_obj_set_style_pad_all(box, 0, 0);
-        lv_obj_set_size(box, 242, 92);
-        lv_obj_align(box, LV_ALIGN_TOP_LEFT, 28 + (i * 242), 392);
+        lv_obj_set_size(box, 242, 100);
         lv_obj_set_style_bg_opa(box, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_color(box, lv_color_hex(0xE0B400), 0);
         lv_obj_set_style_border_width(box, 1, 0);
+        lv_obj_set_style_border_side(box, i == 3 ? LV_BORDER_SIDE_NONE : LV_BORDER_SIDE_RIGHT, 0);
+        lv_obj_set_style_radius(box, 0, 0);
         lv_obj_clear_flag(box, LV_OBJ_FLAG_SCROLLABLE);
-        g_views.detail_stats[i] = label(box, &lv_font_montserrat_32, C_LHR_BLACK);
+        g_views.detail_stats[i] = label(box, &fv_mono_40, C_LHR_BLACK);
         lv_obj_set_width(g_views.detail_stats[i], 232);
-        lv_obj_align(g_views.detail_stats[i], LV_ALIGN_TOP_MID, 0, 10);
+        lv_obj_set_style_text_align(g_views.detail_stats[i], LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_align(g_views.detail_stats[i], LV_ALIGN_TOP_MID, 0, 0);
+        lv_obj_t *unit = label(box, &lv_font_montserrat_14, 0x6F5B00);
+        lv_label_set_text(unit, stat_units[i]);
+        lv_obj_align(unit, LV_ALIGN_TOP_MID, 0, 56);
         lv_obj_t *lbl = label(box, &lv_font_montserrat_12, 0x6F5B00);
         lv_label_set_text(lbl, stat_labels[i]);
+        lv_obj_set_style_text_letter_space(lbl, 1, 0);
         lv_obj_align(lbl, LV_ALIGN_BOTTOM_MID, 0, -8);
     }
 
-    g_views.detail_footer = label(g_views.detail, &lv_font_montserrat_20, C_LHR_YELLOW);
+    g_views.detail_footer = label(g_views.detail, &lv_font_montserrat_16, C_LHR_YELLOW);
+    lv_obj_set_size(g_views.detail_footer, 170, 28);
+    lv_obj_set_style_text_align(g_views.detail_footer, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_bg_color(g_views.detail_footer, lv_color_hex(C_LHR_BLACK), 0);
     lv_obj_set_style_bg_opa(g_views.detail_footer, LV_OPA_COVER, 0);
-    lv_obj_set_style_pad_all(g_views.detail_footer, 8, 0);
+    lv_obj_set_style_pad_ver(g_views.detail_footer, 4, 0);
     lv_obj_set_style_radius(g_views.detail_footer, 20, 0);
-    lv_obj_align(g_views.detail_footer, LV_ALIGN_BOTTOM_MID, 0, -22);
+    lv_obj_align(g_views.detail_footer, LV_ALIGN_BOTTOM_MID, -110, -10);
+    g_views.detail_heading = label(g_views.detail, &lv_font_montserrat_16, 0x6F5B00);
+    lv_obj_set_width(g_views.detail_heading, 230);
+    lv_obj_align(g_views.detail_heading, LV_ALIGN_BOTTOM_MID, 110, -14);
 }
 
 static void create_startup(lv_obj_t *root)
@@ -540,45 +633,84 @@ static void update_multi(void)
     }
 }
 
+static void layout_detail(bool has_route)
+{
+    if (g_views.detail_layout_set && g_views.detail_has_route == has_route) return;
+    int top = has_route ? 64 : 164;
+    lv_obj_set_pos(g_views.detail_airline, 28, top);
+    lv_obj_align(g_views.detail_typecode, LV_ALIGN_TOP_RIGHT, -28, top);
+    lv_obj_align(g_views.detail_type, LV_ALIGN_TOP_RIGHT, -28, top + 116);
+    lv_obj_set_pos(g_views.detail_flight, 28, top + 112);
+    lv_obj_set_pos(g_views.detail_reg, 354, top + 130);
+    for (int i = 0; i < 4; i++) {
+        lv_obj_set_pos(g_views.detail_stat_boxes[i], 28 + i * 242, has_route ? 428 : 354);
+    }
+    if (has_route) {
+        lv_obj_clear_flag(g_views.detail_route, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(g_views.detail_route, LV_OBJ_FLAG_HIDDEN);
+    }
+    g_views.detail_has_route = has_route;
+    g_views.detail_layout_set = true;
+}
+
 static void update_detail(void)
 {
     const flightview_aircraft_t *a = &g_views.model.display;
-    set_text(g_views.detail_badge, "FV");
     char near[48];
     snprintf(near, sizeof(near), "%d nearby", g_views.model.counts.nearby_aircraft);
     set_text(g_views.detail_near, near);
-    set_text(g_views.detail_airline, a->airline[0] ? a->airline : "Unknown");
+    char carrier[FV_TEXT_AIRLINE + 1];
+    short_airline(carrier, sizeof(carrier), a->airline);
+    lv_point_t carrier_size;
+    lv_txt_get_size(&carrier_size, carrier, &fv_outfit_88, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    const lv_font_t *carrier_font = carrier_size.x <= 650 ? &fv_outfit_88 : &fv_outfit_64;
+    if (carrier_font != g_views.detail_carrier_font) {
+        lv_obj_set_style_text_font(g_views.detail_airline, carrier_font, 0);
+        g_views.detail_carrier_font = carrier_font;
+    }
+    set_text(g_views.detail_airline, carrier);
     set_text(g_views.detail_flight, aircraft_name(a));
     set_text(g_views.detail_typecode, a->typecode);
-    set_text(g_views.detail_type, a->aircraft_type);
-    set_text(g_views.detail_reg, a->registration);
+    bool duplicate_type = !a->aircraft_type[0] || same_ascii_text(a->aircraft_type, a->typecode);
+    if (duplicate_type) {
+        lv_obj_add_flag(g_views.detail_type, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        set_text(g_views.detail_type, a->aircraft_type);
+        lv_obj_clear_flag(g_views.detail_type, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (!a->registration[0] || same_ascii_text(a->registration, aircraft_name(a))) {
+        lv_obj_add_flag(g_views.detail_reg, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        set_text(g_views.detail_reg, a->registration);
+        lv_obj_clear_flag(g_views.detail_reg, LV_OBJ_FLAG_HIDDEN);
+    }
 
     const bool has_route = a->route_origin[0] != '\0' && a->route_destination[0] != '\0';
+    layout_detail(has_route);
     if (has_route) {
-        lv_obj_clear_flag(g_views.detail_route, LV_OBJ_FLAG_HIDDEN);
         set_text(g_views.detail_origin, a->route_origin);
         set_text(g_views.detail_origin_city, a->origin_city);
         set_text(g_views.detail_dest, a->route_destination);
         set_text(g_views.detail_dest_city, a->destination_city);
-    } else {
-        lv_obj_add_flag(g_views.detail_route, LV_OBJ_FLAG_HIDDEN);
     }
 
     char buf[64];
-    format_opt(buf, sizeof(buf), a->altitude_ft, "ft");
+    format_opt(buf, sizeof(buf), a->altitude_ft, NULL);
     set_text(g_views.detail_stats[0], buf);
-    format_opt(buf, sizeof(buf), a->velocity_kts, "kt");
+    format_opt(buf, sizeof(buf), a->velocity_kts, NULL);
     set_text(g_views.detail_stats[1], buf);
-    format_opt(buf, sizeof(buf), a->distance_ft, "ft");
+    format_opt(buf, sizeof(buf), a->distance_ft, NULL);
     set_text(g_views.detail_stats[2], buf);
     format_signed(buf, sizeof(buf), a->vertical_rate_fpm);
     set_text(g_views.detail_stats[3], buf);
     char heading[32];
     format_opt(heading, sizeof(heading), a->heading, "deg");
-    snprintf(buf, sizeof(buf), "%s | from %s | %s",
-             a->direction[0] ? a->direction : "-",
-             a->compass[0] ? a->compass : "-", heading);
+    snprintf(buf, sizeof(buf), "%s", a->direction[0] ? a->direction : "-");
+    for (size_t i = 0; buf[i]; i++) buf[i] = (char)toupper((unsigned char)buf[i]);
     set_text(g_views.detail_footer, buf);
+    snprintf(buf, sizeof(buf), "from %s  %s", a->compass[0] ? a->compass : "-", heading);
+    set_text(g_views.detail_heading, buf);
 }
 
 static void render(void)

@@ -160,9 +160,30 @@ host parser probe, verifies the v1 payload, and prints parsed counts/status.
 ## UI notes
 
 The native UI references the modern browser colors in `src\static\style.css`:
-navy/blue radar/list plus `#FECB00` and `#1A1A1A` detail signage. It uses LVGL's
-built-in Montserrat fonts as the current licensed font fallback; no Google Fonts,
-logos, photos, or image libraries are bundled.
+navy/blue radar/list plus `#FECB00` and `#1A1A1A` detail signage. Detail typography
+uses bundled, licensed Outfit and JetBrains Mono subsets: 88 px carrier text
+(64 px for longer names), 80 px aircraft codes, and 96 px airport codes.
+This prioritizes carrier, airframe, and route readability on the smaller panel.
+Secondary labels retain the lightweight builtin Montserrat fonts.
+
+Missing routes collapse and recenter the remaining content. Repeated type codes
+and registrations are suppressed. Telemetry uses comma-separated values with
+units on separate lines. Screen visibility and unchanged labels remain stable
+between updates; the status timer does not repaint the entire detail view.
+
+Font C assets are committed, so normal ESP-IDF builds do not require Node.js or
+network font downloads. To reproduce them from the bundled, hash-checked TTFs:
+
+```powershell
+npm ci --prefix firmware\flightview-7b\tools\fonts --no-audit --no-fund
+npm --prefix firmware\flightview-7b\tools\fonts test
+```
+
+The generator checks glyph coverage, text widths, and the added-data budget.
+Carrier/city fonts include ASCII and Latin-1; they are not full-Unicode fonts.
+`CONFIG_LV_USE_FONT_COMPRESSED=y` is required and guarded at compile time.
+See `components\flightview_views\fonts\SOURCE_FONTS.md` for source revisions,
+licenses, and coverage.
 
 The radar draws up to 32 blips with heading indicators. The side list shows up to
 10 rows, with explicit list/radar/total counts. Aircraft without a known position
