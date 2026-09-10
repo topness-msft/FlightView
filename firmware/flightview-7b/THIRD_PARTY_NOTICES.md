@@ -23,6 +23,5 @@ The ESP-IDF component manager resolves these explicit versions from
 - `espressif/esp_lcd_touch_gt911` `1.2.1`
 - ESP-IDF `>=5.5.0`
 
-No generated lockfile is committed until the first successful ESP-IDF build in an
-IDF 5.5+ environment.
-
+The resolved versions from the successful ESP-IDF 5.5.1 build are committed in
+`dependencies.lock`.

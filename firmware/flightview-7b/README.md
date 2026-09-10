@@ -20,10 +20,23 @@ boards is gated by deploy-runner.
 - Vendored official Waveshare board components are from commit
   `c652c902db607f7ffb376257393cfd7657aa6428`; license is Apache-2.0.
 
-No hardware-tested claim is made yet. The current environment did not have
-`idf.py`, and serial enumeration found only Bluetooth COM3/COM4 rather than the
-ESP32 board, so ESP-IDF build, lockfile generation, flashing, and board baseline
-evidence are pending.
+No hardware-tested claim is made yet. On 2026-09-10, this Windows workstation
+used official ESP-IDF `v5.5.1` installed under
+`%USERPROFILE%\.espressif\frameworks\esp-idf-v5.5.1`; Docker CLI was present,
+but the Docker Desktop Linux daemon was unavailable. The application, SDK test
+application, and unmodified vendor baseline compiled successfully. Physical
+flashing and real-panel evidence remain separate gates.
+
+The reproducible user-scope SDK setup used for the software build gate was:
+
+```powershell
+$env:IDF_TOOLS_PATH = "$env:USERPROFILE\.espressif"
+git clone --branch v5.5.1 --recursive --depth 1 https://github.com/espressif/esp-idf.git `
+  "$env:USERPROFILE\.espressif\frameworks\esp-idf-v5.5.1"
+& "$env:USERPROFILE\.espressif\frameworks\esp-idf-v5.5.1\install.ps1" esp32s3
+& "$env:USERPROFILE\.espressif\frameworks\esp-idf-v5.5.1\export.ps1"
+python "$env:USERPROFILE\.espressif\frameworks\esp-idf-v5.5.1\tools\idf.py" --version
+```
 
 ## Local configuration
 
@@ -49,8 +62,9 @@ this subtree's `.gitignore`. Do not log or commit Wi-Fi credentials.
 From an ESP-IDF 5.5+ shell:
 
 ```powershell
-idf.py -C firmware\flightview-7b set-target esp32s3
-idf.py -C firmware\flightview-7b build
+idf.py -C firmware\flightview-7b -B b\app set-target esp32s3
+idf.py -C firmware\flightview-7b -B b\app build
+idf.py -C firmware\flightview-7b -B b\app size
 ```
 
 Convenience build wrapper, which never flashes:
@@ -59,10 +73,15 @@ Convenience build wrapper, which never flashes:
 .\firmware\flightview-7b\scripts\build_idf.ps1
 ```
 
+The wrapper defaults to the repository-local `b\app` build directory. This keeps
+Windows object/dependency paths shorter than `firmware\flightview-7b\build`,
+which can exceed path limits in managed LVGL adapter sources in long worktrees.
+The generated app lockfile is preserved at `firmware\flightview-7b\dependencies.lock`.
+
 Do not flash without deploy-runner/owner coordination:
 
 ```powershell
-idf.py -C firmware\flightview-7b -p COMx flash monitor
+idf.py -C firmware\flightview-7b -B b\app -p COMx flash monitor
 ```
 
 ## Host protocol tests
@@ -93,8 +112,9 @@ These tests validate the bounded parser/model/radar logic without hardware:
 An ESP-IDF Unity test app is also provided under `test\` for SDK environments:
 
 ```powershell
-idf.py -C firmware\flightview-7b\test set-target esp32s3
-idf.py -C firmware\flightview-7b\test build
+idf.py -C firmware\flightview-7b\test -B b\test set-target esp32s3
+idf.py -C firmware\flightview-7b\test -B b\test build
+idf.py -C firmware\flightview-7b\test -B b\test size
 ```
 
 Hardware flash/monitor of the test app also waits for deploy-runner.
@@ -104,6 +124,8 @@ Convenience test-app build wrapper, which never flashes:
 ```powershell
 .\firmware\flightview-7b\scripts\build_idf_tests.ps1
 ```
+
+The test wrapper defaults to `b\test` for the same Windows path-length reason.
 
 To check parser compatibility against a running FlightView server without
 hardware:
@@ -156,11 +178,12 @@ Before calling the firmware complete on hardware:
 
 See `FIRST_USB_HOOKUP.md` for the exact first-board checklist.
 
-1. Build and flash the unmodified Waveshare 7B LVGL8 example.
-2. Build this firmware from an ESP-IDF 5.5+ shell and preserve the resolved
-   dependency lockfile if successful.
-3. Flash only after deploy-runner confirms COM port and board access.
-4. Capture serial logs for Wi-Fi, HTTP 200, payload size, parsed counts,
+1. Flash the unmodified Waveshare 7B LVGL8 example already built under the
+   ignored `temp\ws8` / `b\ws8` software baseline, or rebuild it from
+   `FIRST_USB_HOOKUP.md`.
+2. Flash this firmware only after deploy-runner confirms COM port and board
+   access.
+3. Capture serial logs for Wi-Fi, HTTP 200, payload size, parsed counts,
    reconnect/backoff, and memory stability.
-5. Capture real board photos for radar/list, detail, startup, stale, and offline
+4. Capture real board photos for radar/list, detail, startup, stale, and offline
    states.

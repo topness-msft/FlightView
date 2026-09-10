@@ -8,6 +8,17 @@ deploy-runner/owner coordination confirms the board, cable, and COM port.
 
 1. Install ESP-IDF 5.5 and open its configured shell using the
    [official Windows setup guide](https://docs.espressif.com/projects/esp-idf/en/v5.5/esp32s3/get-started/windows-setup.html).
+   The software gate on 2026-09-10 used official ESP-IDF `v5.5.1` in user scope:
+
+   ```powershell
+   $env:IDF_TOOLS_PATH = "$env:USERPROFILE\.espressif"
+   git clone --branch v5.5.1 --recursive --depth 1 https://github.com/espressif/esp-idf.git `
+     "$env:USERPROFILE\.espressif\frameworks\esp-idf-v5.5.1"
+   & "$env:USERPROFILE\.espressif\frameworks\esp-idf-v5.5.1\install.ps1" esp32s3
+   & "$env:USERPROFILE\.espressif\frameworks\esp-idf-v5.5.1\export.ps1"
+   python "$env:USERPROFILE\.espressif\frameworks\esp-idf-v5.5.1\tools\idf.py" --version
+   ```
+
 2. Run the commands below from the FlightView repository root.
 3. Create the local Wi-Fi/API header:
 
@@ -31,7 +42,13 @@ From repo root:
 .\firmware\flightview-7b\tests\run_host_tests.ps1
 .\firmware\flightview-7b\scripts\build_idf.ps1
 .\firmware\flightview-7b\scripts\build_idf_tests.ps1
+idf.py -C firmware\flightview-7b -B b\app size
+idf.py -C firmware\flightview-7b\test -B b\test size
 ```
+
+The native build wrappers default to repository-local `b\app` and `b\test`
+directories to avoid Windows path-length failures in long worktree paths. Use
+`-BuildDir <path>` only if a different short build root is needed.
 
 If a dev/mock FlightView API is live:
 
@@ -53,10 +70,22 @@ live API probe bytes=<65536-or-less> url=<url>
 2. Flash and observe the unmodified
    [official Waveshare LVGL8 7B demo](https://github.com/waveshareteam/ESP32-S3-Touch-LCD-7B/tree/c652c902db607f7ffb376257393cfd7657aa6428/examples/ESP-IDF/13_lvgl_v8_demo)
    first. Use the 7B example, not the original 800x480 board's firmware.
+   The software-only baseline build used:
+
+   ```powershell
+   git clone --filter=blob:none https://github.com/waveshareteam/ESP32-S3-Touch-LCD-7B.git temp\waveshare-7b-baseline
+   git -C temp\waveshare-7b-baseline checkout c652c902db607f7ffb376257393cfd7657aa6428
+   Copy-Item -Recurse temp\waveshare-7b-baseline\examples\ESP-IDF\13_lvgl_v8_demo temp\ws8
+   Remove-Item -Recurse -Force -ErrorAction SilentlyContinue temp\ws8\managed_components, temp\ws8\dependencies.lock
+   idf.py -C temp\ws8 -B b\ws8 set-target esp32s3
+   idf.py -C temp\ws8 -B b\ws8 build
+   idf.py -C temp\ws8 -B b\ws8 size
+   ```
+
 3. Only after that baseline works, flash this firmware:
 
    ```powershell
-   idf.py -C firmware\flightview-7b -p COMx flash monitor
+   idf.py -C firmware\flightview-7b -B b\app -p COMx flash monitor
    ```
 
 4. Save serial monitor evidence showing:

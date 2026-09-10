@@ -1,10 +1,18 @@
 param(
-    [switch]$SkipSetTarget
+    [switch]$SkipSetTarget,
+    [string]$BuildDir
 )
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $testRoot = Join-Path $root "test"
+$repoRoot = Split-Path -Parent (Split-Path -Parent $root)
+
+if (-not $BuildDir) {
+    $BuildDir = Join-Path $repoRoot "b\test"
+} elseif (-not [System.IO.Path]::IsPathRooted($BuildDir)) {
+    $BuildDir = Join-Path (Get-Location) $BuildDir
+}
 
 $idf = Get-Command idf.py -ErrorAction SilentlyContinue
 if (-not $idf) {
@@ -12,9 +20,9 @@ if (-not $idf) {
 }
 
 if (-not $SkipSetTarget) {
-    idf.py -C $testRoot set-target esp32s3
+    idf.py -C $testRoot -B $BuildDir set-target esp32s3
     if ($LASTEXITCODE -ne 0) { throw "ESP-IDF test target configuration failed" }
 }
 
-idf.py -C $testRoot build
+idf.py -C $testRoot -B $BuildDir build
 if ($LASTEXITCODE -ne 0) { throw "ESP-IDF test app build failed" }

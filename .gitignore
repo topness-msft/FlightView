@@ -37,6 +37,7 @@ test-runs/*/recording.*
 playwright-videos/
 
 # Local artifacts
+/b/
 temp/
 .playwright-mcp/
 *.png
