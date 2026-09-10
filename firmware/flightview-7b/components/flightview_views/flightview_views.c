@@ -34,9 +34,11 @@ typedef struct {
     lv_obj_t *multi;
     lv_obj_t *detail;
     lv_obj_t *startup;
+    lv_obj_t *active_screen;
     lv_obj_t *status_bar;
     lv_obj_t *status_dot;
     lv_obj_t *status_text;
+    uint32_t status_color;
     lv_obj_t *multi_count;
     lv_obj_t *radar;
     lv_obj_t *near_ring;
@@ -68,7 +70,10 @@ static const char *TAG = "fv_views";
 
 static void set_text(lv_obj_t *label, const char *text)
 {
-    lv_label_set_text(label, (text != NULL && text[0] != '\0') ? text : "-");
+    const char *value = (text != NULL && text[0] != '\0') ? text : "-";
+    if (strcmp(lv_label_get_text(label), value) != 0) {
+        lv_label_set_text(label, value);
+    }
 }
 
 static const char *aircraft_name(const flightview_aircraft_t *a)
@@ -398,12 +403,13 @@ static void create_startup(lv_obj_t *root)
 
 static void set_screen(bool startup, bool detail)
 {
+    lv_obj_t *next = startup ? g_views.startup : (detail ? g_views.detail : g_views.multi);
+    if (g_views.active_screen == next) return;
     lv_obj_add_flag(g_views.startup, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(g_views.multi, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(g_views.detail, LV_OBJ_FLAG_HIDDEN);
-    if (startup) lv_obj_clear_flag(g_views.startup, LV_OBJ_FLAG_HIDDEN);
-    else if (detail) lv_obj_clear_flag(g_views.detail, LV_OBJ_FLAG_HIDDEN);
-    else lv_obj_clear_flag(g_views.multi, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(next, LV_OBJ_FLAG_HIDDEN);
+    g_views.active_screen = next;
 }
 
 static void update_status(void)
@@ -420,7 +426,10 @@ static void update_status(void)
         color = C_STATUS_WARN;
         prefix = stale ? "stale source" : "source error";
     }
-    lv_obj_set_style_bg_color(g_views.status_dot, lv_color_hex(color), 0);
+    if (g_views.status_color != color) {
+        lv_obj_set_style_bg_color(g_views.status_dot, lv_color_hex(color), 0);
+        g_views.status_color = color;
+    }
 
     uint64_t age_s = age_ms / 1000U;
     char text[160];
@@ -436,7 +445,7 @@ static void update_status(void)
                  g_views.model.counts.total_aircraft,
                  g_views.model.counts.truncated ? " | truncated" : "");
     }
-    lv_label_set_text(g_views.status_text, text);
+    set_text(g_views.status_text, text);
 }
 
 static void update_multi(void)
@@ -446,15 +455,18 @@ static void update_multi(void)
     snprintf(count, sizeof(count), "List %u / radar %u / total %d",
              (unsigned)rows, (unsigned)g_views.model.aircraft_count,
              g_views.model.counts.total_aircraft);
-    lv_label_set_text(g_views.multi_count, count);
+    set_text(g_views.multi_count, count);
 
     int near_px = flightview_radar_near_ring_radius_px(
         (float)g_views.model.zones.near_radius_ft,
         (float)g_views.model.zones.radar_radius_ft,
         380,
         500);
-    lv_obj_set_size(g_views.near_ring, near_px * 2, near_px * 2);
-    lv_obj_center(g_views.near_ring);
+    if (lv_obj_get_width(g_views.near_ring) != near_px * 2 ||
+        lv_obj_get_height(g_views.near_ring) != near_px * 2) {
+        lv_obj_set_size(g_views.near_ring, near_px * 2, near_px * 2);
+        lv_obj_center(g_views.near_ring);
+    }
 
     for (int i = 0; i < FV_MAX_AIRCRAFT; i++) {
         if ((size_t)i >= g_views.model.aircraft_count) {
@@ -484,16 +496,20 @@ static void update_multi(void)
         lv_obj_set_pos(g_views.blip_labels[i], p.x > 275 ? p.x - 105 : p.x + 10, p.y + 8);
         if (a->heading.valid) {
             float angle = a->heading.value * 3.14159265358979323846f / 180.0f;
-            g_views.heading_points[i][0] = (lv_point_t){p.x, p.y};
-            g_views.heading_points[i][1] = (lv_point_t){
+            lv_point_t end = {
                 p.x + (int)lroundf(17 * sinf(angle)), p.y - (int)lroundf(17 * cosf(angle)),
             };
-            lv_line_set_points(g_views.headings[i], g_views.heading_points[i], 2);
+            if (g_views.heading_points[i][0].x != p.x || g_views.heading_points[i][0].y != p.y ||
+                g_views.heading_points[i][1].x != end.x || g_views.heading_points[i][1].y != end.y) {
+                g_views.heading_points[i][0] = (lv_point_t){p.x, p.y};
+                g_views.heading_points[i][1] = end;
+                lv_line_set_points(g_views.headings[i], g_views.heading_points[i], 2);
+            }
             lv_obj_clear_flag(g_views.headings[i], LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_add_flag(g_views.headings[i], LV_OBJ_FLAG_HIDDEN);
         }
-        lv_label_set_text(g_views.blip_labels[i], aircraft_name(a));
+        set_text(g_views.blip_labels[i], aircraft_name(a));
         lv_obj_clear_flag(g_views.blips[i], LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(g_views.blip_labels[i], LV_OBJ_FLAG_HIDDEN);
     }
@@ -519,7 +535,7 @@ static void update_multi(void)
         set_text(g_views.list_text[i][0], aircraft_name(a));
         set_text(g_views.list_text[i][1], a->airline);
         set_text(g_views.list_text[i][2], a->aircraft_type[0] ? a->aircraft_type : a->typecode);
-        lv_label_set_text(g_views.list_text[i][3], stats);
+        set_text(g_views.list_text[i][3], stats);
         lv_obj_clear_flag(g_views.list_rows[i], LV_OBJ_FLAG_HIDDEN);
     }
 }
@@ -530,7 +546,7 @@ static void update_detail(void)
     set_text(g_views.detail_badge, "FV");
     char near[48];
     snprintf(near, sizeof(near), "%d nearby", g_views.model.counts.nearby_aircraft);
-    lv_label_set_text(g_views.detail_near, near);
+    set_text(g_views.detail_near, near);
     set_text(g_views.detail_airline, a->airline[0] ? a->airline : "Unknown");
     set_text(g_views.detail_flight, aircraft_name(a));
     set_text(g_views.detail_typecode, a->typecode);
@@ -550,19 +566,19 @@ static void update_detail(void)
 
     char buf[64];
     format_opt(buf, sizeof(buf), a->altitude_ft, "ft");
-    lv_label_set_text(g_views.detail_stats[0], buf);
+    set_text(g_views.detail_stats[0], buf);
     format_opt(buf, sizeof(buf), a->velocity_kts, "kt");
-    lv_label_set_text(g_views.detail_stats[1], buf);
+    set_text(g_views.detail_stats[1], buf);
     format_opt(buf, sizeof(buf), a->distance_ft, "ft");
-    lv_label_set_text(g_views.detail_stats[2], buf);
+    set_text(g_views.detail_stats[2], buf);
     format_signed(buf, sizeof(buf), a->vertical_rate_fpm);
-    lv_label_set_text(g_views.detail_stats[3], buf);
+    set_text(g_views.detail_stats[3], buf);
     char heading[32];
     format_opt(heading, sizeof(heading), a->heading, "deg");
     snprintf(buf, sizeof(buf), "%s | from %s | %s",
              a->direction[0] ? a->direction : "-",
              a->compass[0] ? a->compass : "-", heading);
-    lv_label_set_text(g_views.detail_footer, buf);
+    set_text(g_views.detail_footer, buf);
 }
 
 static void render(void)
@@ -585,14 +601,20 @@ static void ui_timer(lv_timer_t *timer)
 {
     (void)timer;
     static flightview_ui_message_t msg;
+    bool model_received = false;
     while (xQueueReceive(g_views.queue, &msg, 0) == pdTRUE) {
         if (msg.type == FV_UI_MSG_MODEL) {
             flightview_model_apply_success(&g_views.model, &msg.model);
+            model_received = true;
         } else if (msg.type == FV_UI_MSG_TRANSPORT) {
             flightview_model_apply_transport(&g_views.model, msg.transport_status, msg.transport_message, msg.monotonic_ms);
         }
     }
-    render();
+    if (model_received) {
+        render();
+    } else {
+        update_status();
+    }
 }
 
 QueueHandle_t flightview_views_start(void)
