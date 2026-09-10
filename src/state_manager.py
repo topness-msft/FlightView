@@ -7,6 +7,7 @@ and departures, and manages the display queue.
 import logging
 import threading
 import time
+from copy import deepcopy
 
 from callsign_decoder import decode_callsign
 from icao_db import get_aircraft_type
@@ -26,6 +27,8 @@ class AircraftStateManager:
         self._prev_distances: dict[str, float] = {}
         self._near_radius_ft: int = 1500
         self._near_altitude_ft: int = 3000
+        self._observed_at: float | None = None
+        self._observed_monotonic: float | None = None
         self._state: dict = {
             "display": None,
             "nearby_count": 0,
@@ -52,7 +55,10 @@ class AircraftStateManager:
             State dict with display, nearby_count, aircraft_list, and events.
         """
         with self._lock:
-            return self._update_locked(aircraft_list, near_radius_ft, near_altitude_ft)
+            state = self._update_locked(aircraft_list, near_radius_ft, near_altitude_ft)
+            self._observed_at = time.time()
+            self._observed_monotonic = time.monotonic()
+            return state
 
     def _update_locked(self, aircraft_list: list[dict], near_radius_ft: int, near_altitude_ft: int) -> dict:
         now = time.time()
@@ -267,6 +273,21 @@ class AircraftStateManager:
     def get_display_state(self) -> dict:
         """Return the current state without updating (for new WebSocket connections)."""
         return self._state
+
+    def get_display_snapshot(self) -> dict:
+        """Copy the companion's data and observation age under the writer lock."""
+        with self._lock:
+            age_ms = None
+            if self._observed_monotonic is not None:
+                age_ms = max(0, int((time.monotonic() - self._observed_monotonic) * 1000))
+            return {
+                "display": deepcopy(self._display_aircraft),
+                "aircraft_list": deepcopy(self._state["aircraft_list"]),
+                "nearby_count": self._state["nearby_count"],
+                "near_radius_ft": self._near_radius_ft,
+                "source_state_observed_at": self._observed_at,
+                "state_age_ms": age_ms,
+            }
 
     def get_active(self, icao24: str) -> dict | None:
         """Return the active aircraft dict for icao24, or None.

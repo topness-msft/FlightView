@@ -25,6 +25,7 @@ from icao_db import icao_db
 from adsbx_client import ADSBXClient
 from adsblol_client import AdsbLolClient
 from state_manager import AircraftStateManager
+from display_projection import project_display, serialize_display
 from mock_data import MockDataSource
 from route_reconciler import find_takeoff_point, reconcile_route, compute_track_phase
 
@@ -686,6 +687,28 @@ def diagnostic_reconcile():
     except Exception as exc:
         logger.exception("diagnostic_reconcile failed")
         return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/v1/display", methods=["GET"])
+def get_companion_display():
+    """Read-only bounded snapshot; never fetch aircraft or request enrichment."""
+    try:
+        payload = project_display(
+            state_mgr.get_display_snapshot(),
+            {
+                "poll_interval_sec": config.POLL_INTERVAL_SEC,
+                "radar_radius_ft": config.RADAR_RADIUS_FT,
+                "server_version": SERVER_VERSION,
+            },
+            dict(_health),
+        )
+        response = app.response_class(serialize_display(payload), mimetype="application/json")
+    except ValueError:
+        logger.exception("Cannot serialize companion display")
+        response = jsonify({"error": "Display feed unavailable"})
+        response.status_code = 503
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.route("/api/state", methods=["GET"])
