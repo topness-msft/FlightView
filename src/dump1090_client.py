@@ -13,6 +13,14 @@ import requests
 logger = logging.getLogger(__name__)
 
 
+def _normalise_text(value: object, *, uppercase: bool = False) -> str:
+    """Return a trimmed, single-spaced optional receiver text field."""
+    if not isinstance(value, str):
+        return ""
+    result = " ".join(value.split())
+    return result.upper() if uppercase else result
+
+
 class Dump1090Error(Exception):
     """Raised when the dump1090/readsb endpoint is unreachable or unhealthy."""
 
@@ -157,6 +165,9 @@ class Dump1090Client:
           track      — true track heading in degrees (float)
           baro_rate  — vertical rate in ft/min (int)
           seen       — seconds since last message (float)
+          t          — optional database aircraft type designator
+          r          — optional database registration
+          desc       — optional database aircraft description
 
         Returns None for aircraft without usable position data.
         """
@@ -184,4 +195,7 @@ class Dump1090Client:
             "vertical_rate_fpm": float(ac.get("baro_rate", 0) or 0),
             "on_ground": False,
             "last_contact": time.time() - float(ac.get("seen", 0) or 0),
+            "receiver_typecode": _normalise_text(ac.get("t"), uppercase=True),
+            "receiver_registration": _normalise_text(ac.get("r"), uppercase=True),
+            "receiver_description": _normalise_text(ac.get("desc")),
         }

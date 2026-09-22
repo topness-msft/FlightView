@@ -101,6 +101,46 @@ class TestParseAircraft:
         after = time.time()
         assert before - 2.0 <= result["last_contact"] <= after - 2.0
 
+    def test_preserves_readsb_airframe_metadata(self):
+        ac = {
+            "hex": "a7c881",
+            "lat": 47.0,
+            "lon": -122.0,
+            "alt_baro": 5000,
+            "t": " e550 ",
+            "r": " n550ej ",
+            "desc": "  Embraer   Legacy 500  ",
+            "type": "adsb_icao",
+            "category": "A2",
+        }
+
+        result = Dump1090Client._parse_aircraft(ac)
+
+        assert result is not None
+        assert result["receiver_typecode"] == "E550"
+        assert result["receiver_registration"] == "N550EJ"
+        assert result["receiver_description"] == "Embraer Legacy 500"
+        assert "type" not in result
+        assert "category" not in result
+
+    @pytest.mark.parametrize("field", ("t", "r", "desc"))
+    @pytest.mark.parametrize("value", (None, "   "))
+    def test_missing_readsb_airframe_metadata_still_accepts_aircraft(self, field, value):
+        ac = {
+            "hex": "a7c881",
+            "lat": 47.0,
+            "lon": -122.0,
+            "alt_baro": 5000,
+            field: value,
+        }
+
+        result = Dump1090Client._parse_aircraft(ac)
+
+        assert result is not None
+        assert result["receiver_typecode"] == ""
+        assert result["receiver_registration"] == ""
+        assert result["receiver_description"] == ""
+
 
 class TestFetchAircraft:
     """Test fetch_aircraft with mocked HTTP responses."""

@@ -15,6 +15,57 @@ from icao_db import get_aircraft_type
 logger = logging.getLogger(__name__)
 
 
+def _normalise_text(value: object, *, uppercase: bool = False) -> str:
+    """Return a trimmed, single-spaced optional metadata value."""
+    if not isinstance(value, str):
+        return ""
+    result = " ".join(value.split())
+    return result.upper() if uppercase else result
+
+
+def _is_code_only_aircraft_type(aircraft_type: object, typecode: object) -> bool:
+    """Whether a display type is only a duplicate of its ICAO designator."""
+    type_name = _normalise_text(aircraft_type)
+    code = _normalise_text(typecode, uppercase=True)
+    return bool(type_name and code and type_name.casefold() == code.casefold())
+
+
+def _csv_aircraft_description(icao_info: dict) -> str:
+    """Build a readable description from optional ICAO database fields."""
+    manufacturer = _normalise_text(icao_info.get("manufacturer"))
+    model = _normalise_text(icao_info.get("model"))
+    if manufacturer and model:
+        if model.casefold().startswith(manufacturer.casefold()):
+            return model
+        return f"{manufacturer} {model}"
+    return model or manufacturer
+
+
+def _resolve_airframe(aircraft: dict, icao_info: dict | None) -> tuple[str, str, str]:
+    """Resolve local database and receiver airframe metadata without I/O."""
+    info = icao_info or {}
+    typecode = (
+        _normalise_text(info.get("typecode"), uppercase=True)
+        or _normalise_text(aircraft.get("receiver_typecode"), uppercase=True)
+    )
+    registration = (
+        _normalise_text(info.get("registration"), uppercase=True)
+        or _normalise_text(aircraft.get("receiver_registration"), uppercase=True)
+    )
+
+    mapped_type = get_aircraft_type(typecode)
+    if mapped_type and not _is_code_only_aircraft_type(mapped_type, typecode):
+        return typecode, mapped_type, registration
+
+    return (
+        typecode,
+        _csv_aircraft_description(info)
+        or _normalise_text(aircraft.get("receiver_description"))
+        or mapped_type,
+        registration,
+    )
+
+
 class AircraftStateManager:
     """Tracks active aircraft in the zone and manages priority display."""
 
@@ -108,12 +159,22 @@ class AircraftStateManager:
                 # Airframe-level fields (tied to icao24, not callsign) always carry forward
                 if prev.get("typecode") and not ac.get("typecode"):
                     ac["typecode"] = prev["typecode"]
+                if prev.get("registration") and not ac.get("registration"):
+                    ac["registration"] = prev["registration"]
                 # Preserve API-sourced airline/type (prefixed to avoid overwriting real data)
                 if prev.get("airline") not in ("", "Unknown") and ac.get("airline") in ("", "Unknown"):
                     ac["airline"] = prev["airline"]
                 if prev.get("flight_display") and not ac.get("flight_display"):
                     ac["flight_display"] = prev["flight_display"]
-                if prev.get("aircraft_type") and not ac.get("aircraft_type"):
+                if prev.get("aircraft_type") and (
+                    not ac.get("aircraft_type")
+                    or (
+                        _is_code_only_aircraft_type(ac.get("aircraft_type"), ac.get("typecode"))
+                        and not _is_code_only_aircraft_type(
+                            prev.get("aircraft_type"), prev.get("typecode"),
+                        )
+                    )
+                ):
                     ac["aircraft_type"] = prev["aircraft_type"]
 
             self._active[icao] = ac
@@ -225,9 +286,9 @@ class AircraftStateManager:
         """
         icao24 = aircraft.get("icao24", "")
 
-        # Resolve aircraft type from icao_info typecode
-        typecode = (icao_info or {}).get("typecode", "")
-        aircraft_type = get_aircraft_type(typecode) if typecode else ""        # Route fields
+        typecode, aircraft_type, registration = _resolve_airframe(aircraft, icao_info)
+
+        # Route fields
         route_origin = (route_info or {}).get("origin", "")
         route_destination = (route_info or {}).get("destination", "")
         route_display = ""
@@ -254,7 +315,7 @@ class AircraftStateManager:
             "flight_display": callsign_info.get("display", ""),
             "aircraft_type": aircraft_type,
             "typecode": typecode,
-            "registration": (icao_info or {}).get("registration", ""),
+            "registration": registration,
             "route_origin": route_origin,
             "route_destination": route_destination,
             "route_display": route_display,
