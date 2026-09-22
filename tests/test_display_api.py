@@ -207,6 +207,59 @@ def test_values_units_and_missing_data(feed):
     assert "latitude" not in display
 
 
+def test_csv_model_resolution_reaches_v1_display(feed):
+    manager, client = feed
+    enriched = manager.enrich_aircraft(
+        {
+            "icao24": "a7c881",
+            "callsign": "EJA606",
+            "distance_ft": 1000,
+            "altitude_ft": 2000,
+            "bearing": 90,
+            "compass": "E",
+        },
+        {"airline": "NetJets", "display": "EJA606"},
+        {
+            "typecode": "E550",
+            "manufacturer": "Embraer",
+            "model": "Legacy 500",
+            "registration": "N550EJ",
+        },
+        None,
+    )
+    manager.update([enriched])
+
+    display = get_feed(client)["display"]
+
+    assert display["typecode"] == "E550"
+    assert display["aircraft_type"] == "Embraer Legacy 500"
+    assert display["registration"] == "N550EJ"
+
+
+def test_code_only_airframe_metadata_remains_valid_v1_display(feed):
+    manager, client = feed
+    enriched = manager.enrich_aircraft(
+        {
+            "icao24": "a7c881",
+            "callsign": "EJA606",
+            "distance_ft": 1000,
+            "altitude_ft": 2000,
+            "bearing": 90,
+            "compass": "E",
+        },
+        {"airline": "NetJets", "display": "EJA606"},
+        {"typecode": "E550", "manufacturer": "", "model": "", "registration": ""},
+        None,
+    )
+    manager.update([enriched])
+
+    display = get_feed(client)["display"]
+
+    assert display["typecode"] == "E550"
+    assert display["aircraft_type"] == "E550"
+    assert display["registration"] == ""
+
+
 @pytest.mark.parametrize("value", [True, "120", [], float("-inf"), 10 ** 400])
 def test_unusable_numerics_remain_unknown(feed, value):
     manager, client = feed

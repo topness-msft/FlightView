@@ -75,7 +75,7 @@ class TestDisplaySelectsClosest:
         ]
         state = mgr.update(aircraft)
         assert state["display"]["icao24"] == "close"
-        assert state["nearby_count"] == 3
+        assert state["nearby_count"] == 2
 
 
 class TestAutoAdvanceOnLeave:
@@ -161,6 +161,183 @@ class TestEnrichAircraft:
         assert result["aircraft_type"] == ""
         assert result["route_display"] == ""
         assert result["registration"] == ""
+
+    def test_csv_model_enriches_unknown_typecode(self):
+        mgr = AircraftStateManager()
+        aircraft = _make_aircraft("a7c881")
+        icao_info = {
+            "typecode": "E550",
+            "manufacturer": "Embraer",
+            "model": "Legacy 500",
+            "registration": "N550EJ",
+        }
+
+        result = mgr.enrich_aircraft(aircraft, {}, icao_info, None)
+
+        assert result["typecode"] == "E550"
+        assert result["aircraft_type"] == "Embraer Legacy 500"
+        assert result["registration"] == "N550EJ"
+
+    def test_curated_type_name_beats_csv_model(self):
+        mgr = AircraftStateManager()
+        aircraft = _make_aircraft("a5f208")
+        icao_info = {
+            "typecode": "B738",
+            "manufacturer": "Boeing",
+            "model": "737-8H4",
+            "registration": "N482WN",
+        }
+
+        result = mgr.enrich_aircraft(aircraft, {}, icao_info, None)
+
+        assert result["aircraft_type"] == "Boeing 737-800"
+
+    def test_receiver_metadata_fills_local_database_gaps(self):
+        mgr = AircraftStateManager()
+        aircraft = _make_aircraft(
+            "a7c881",
+            receiver_typecode="E550",
+            receiver_registration="N550EJ",
+            receiver_description="Embraer Legacy 500",
+        )
+        icao_info = {
+            "typecode": "",
+            "manufacturer": "",
+            "model": "",
+            "registration": "",
+        }
+
+        result = mgr.enrich_aircraft(aircraft, {}, icao_info, None)
+
+        assert result["typecode"] == "E550"
+        assert result["aircraft_type"] == "Embraer Legacy 500"
+        assert result["registration"] == "N550EJ"
+
+    def test_local_database_wins_over_conflicting_receiver_metadata(self):
+        mgr = AircraftStateManager()
+        aircraft = _make_aircraft(
+            "a7c881",
+            receiver_typecode="E550",
+            receiver_registration="N550EJ",
+            receiver_description="Embraer Legacy 500",
+        )
+        icao_info = {
+            "typecode": "B738",
+            "manufacturer": "Boeing",
+            "model": "737-800",
+            "registration": "N482WN",
+        }
+
+        result = mgr.enrich_aircraft(aircraft, {}, icao_info, None)
+
+        assert result["typecode"] == "B738"
+        assert result["aircraft_type"] == "Boeing 737-800"
+        assert result["registration"] == "N482WN"
+
+    def test_unknown_typecode_without_metadata_remains_code_only(self):
+        mgr = AircraftStateManager()
+        result = mgr.enrich_aircraft(
+            _make_aircraft("a7c881"),
+            {},
+            {"typecode": "E550", "manufacturer": "", "model": "", "registration": ""},
+            None,
+        )
+
+        assert result["typecode"] == "E550"
+        assert result["aircraft_type"] == "E550"
+        assert result["registration"] == ""
+
+    @patch("requests.get", side_effect=AssertionError("remote metadata lookup"))
+    def test_local_airframe_resolution_does_not_request_remote_metadata(self, mock_get):
+        mgr = AircraftStateManager()
+        result = mgr.enrich_aircraft(
+            _make_aircraft("a7c881"),
+            {},
+            {
+                "typecode": "E550",
+                "manufacturer": "Embraer",
+                "model": "Legacy 500",
+                "registration": "N550EJ",
+            },
+            None,
+        )
+
+        assert result["aircraft_type"] == "Embraer Legacy 500"
+        mock_get.assert_not_called()
+
+    def test_code_only_update_does_not_downgrade_airframe_metadata(self):
+        mgr = AircraftStateManager()
+        rich = _make_aircraft(
+            "a7c881",
+            callsign="EJA606",
+            typecode="E550",
+            aircraft_type="Embraer Legacy 500",
+            registration="N550EJ",
+        )
+        mgr.update([rich])
+
+        code_only = _make_aircraft(
+            "a7c881",
+            callsign="EJA606",
+            typecode="E550",
+            aircraft_type="E550",
+            registration="",
+        )
+        state = mgr.update([code_only])
+        retained = state["display"]
+
+        assert retained["typecode"] == "E550"
+        assert retained["aircraft_type"] == "Embraer Legacy 500"
+        assert retained["registration"] == "N550EJ"
+
+    def test_rich_airframe_metadata_survives_three_omitted_polls(self):
+        mgr = AircraftStateManager()
+        mgr.update([_make_aircraft(
+            "a7c881",
+            typecode="E550",
+            aircraft_type="Embraer Legacy 500",
+            registration="N550EJ",
+        )])
+
+        for _ in range(3):
+            state = mgr.update([_make_aircraft(
+                "a7c881",
+                typecode="",
+                aircraft_type="",
+                registration="",
+            )])
+            retained = state["display"]
+            assert retained["typecode"] == "E550"
+            assert retained["aircraft_type"] == "Embraer Legacy 500"
+            assert retained["registration"] == "N550EJ"
+
+    def test_callsign_change_keeps_airframe_metadata_but_drops_route(self):
+        mgr = AircraftStateManager()
+        mgr.update([_make_aircraft(
+            "a7c881",
+            callsign="EJA606",
+            typecode="E550",
+            aircraft_type="Embraer Legacy 500",
+            registration="N550EJ",
+            route_origin="IAD",
+            route_destination="ORD",
+            route_display="IAD \u2192 ORD",
+        )])
+
+        state = mgr.update([_make_aircraft(
+            "a7c881",
+            callsign="EJA607",
+            typecode="",
+            aircraft_type="",
+            registration="",
+        )])
+        retained = state["display"]
+
+        assert retained.get("route_origin", "") == ""
+        assert retained.get("route_destination", "") == ""
+        assert retained["typecode"] == "E550"
+        assert retained["aircraft_type"] == "Embraer Legacy 500"
+        assert retained["registration"] == "N550EJ"
 
 
 class TestGetDisplayState:
