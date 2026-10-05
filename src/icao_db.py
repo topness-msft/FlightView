@@ -7,6 +7,8 @@ aircraft names.
 
 import csv
 import logging
+import os
+import tempfile
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -215,28 +217,96 @@ class ICAODatabase:
 OPENSKY_DB_URL = "https://opensky-network.org/datasets/metadata/aircraftDatabase.csv"
 DB_DIR = Path(__file__).resolve().parent.parent / "data"
 DB_PATH = DB_DIR / "aircraftDatabase.csv"
+# The OpenSky CSV is roughly 90 MB. Smaller files are incomplete caches, not
+# useful aircraft databases.
+MIN_AIRCRAFT_DB_SIZE_BYTES = 10_000_000
+
+
+def _is_valid_aircraft_db(db_path: Path, minimum_size: int = 0) -> bool:
+    """Return whether a CSV has the minimum data needed for ICAO lookups."""
+    try:
+        if db_path.stat().st_size < minimum_size:
+            return False
+        with open(db_path, "r", encoding="utf-8", errors="replace", newline="") as f:
+            reader = csv.reader(f)
+            header = next(reader, None)
+            if not header:
+                return False
+
+            header_lower = [column.strip().lower() for column in header]
+            if "icao24" not in header_lower:
+                return False
+
+            icao24_index = header_lower.index("icao24")
+            return any(
+                len(row) > icao24_index and row[icao24_index].strip()
+                for row in reader
+            )
+    except (OSError, csv.Error):
+        return False
 
 
 def ensure_aircraft_db() -> str | None:
-    """Download the OpenSky aircraft database if not present. Returns path or None."""
+    """Return a valid local aircraft database, downloading one when needed."""
     if DB_PATH.exists():
-        logger.info("Aircraft database found: %s (%d MB)", DB_PATH, DB_PATH.stat().st_size // 1_000_000)
-        return str(DB_PATH)
+        if _is_valid_aircraft_db(DB_PATH, MIN_AIRCRAFT_DB_SIZE_BYTES):
+            logger.info(
+                "Aircraft database found: %s (%d MB)",
+                DB_PATH,
+                DB_PATH.stat().st_size // 1_000_000,
+            )
+            return str(DB_PATH)
+        logger.warning("Aircraft database is invalid and will be replaced: %s", DB_PATH)
 
     logger.info("Downloading OpenSky aircraft database (~90 MB)...")
+    temp_path: Path | None = None
     try:
         DB_DIR.mkdir(parents=True, exist_ok=True)
         import requests
+
         resp = requests.get(OPENSKY_DB_URL, timeout=120, stream=True)
         resp.raise_for_status()
-        with open(DB_PATH, "wb") as f:
+        content_length = resp.headers.get("Content-Length")
+        expected_size = int(content_length) if content_length and content_length.isdigit() else None
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            dir=DB_DIR,
+            prefix="aircraftDatabase-",
+            suffix=".tmp",
+            delete=False,
+        ) as f:
+            temp_path = Path(f.name)
             for chunk in resp.iter_content(chunk_size=1_000_000):
-                f.write(chunk)
-        logger.info("Aircraft database downloaded: %s (%d MB)", DB_PATH, DB_PATH.stat().st_size // 1_000_000)
+                if chunk:
+                    f.write(chunk)
+
+        downloaded_size = temp_path.stat().st_size
+        if (
+            expected_size is not None
+            and downloaded_size != expected_size
+        ) or not _is_valid_aircraft_db(
+            temp_path, MIN_AIRCRAFT_DB_SIZE_BYTES
+        ):
+            logger.warning("Downloaded aircraft database was invalid")
+            return None
+
+        os.replace(temp_path, DB_PATH)
+        temp_path = None
+        logger.info(
+            "Aircraft database downloaded: %s (%d MB)",
+            DB_PATH,
+            DB_PATH.stat().st_size // 1_000_000,
+        )
         return str(DB_PATH)
-    except Exception:
+    except (OSError, requests.RequestException):
         logger.warning("Failed to download aircraft database", exc_info=True)
         return None
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink(missing_ok=True)
+            except OSError:
+                logger.warning("Failed to remove temporary aircraft database: %s", temp_path)
 
 
 # Module-level singleton — auto-download on first import
