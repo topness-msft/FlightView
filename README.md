@@ -132,7 +132,15 @@ Mock mode generates 4–7 simulated aircraft with realistic behaviors (approachi
 
 ## API Keys
 
-No API keys required. Route enrichment uses [adsb.lol](https://adsb.lol)'s free community route database — origin → destination is looked up by callsign when an aircraft enters the near zone, with a 10-minute cache per callsign.
+No API keys required. Route enrichment uses [adsb.lol](https://adsb.lol)'s free community route database — origin →
+destination is looked up by callsign as an aircraft enters the radar zone, with a 10-minute cache per callsign.
+FlightView accepts either detailed airport records or the provider's declared airport-code pair. Transient provider
+failures stay eligible for a later poll; a provider response that lacks a route remains unknown rather than being
+shown as an itinerary.
+
+Aircraft type and registration come from the receiver when available, otherwise from the OpenSky static aircraft
+database. The database is validated before use and atomically refreshed after 30 days or when a prior download is
+incomplete; aircraft absent from both sources remain unknown.
 
 ## ESP32 companion display
 

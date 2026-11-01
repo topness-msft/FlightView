@@ -204,6 +204,20 @@ class TestReconcileRoute:
         result = reconcile_route(adsb, (35.0, -78.0))
         assert result["confidence"] == "suppress"
 
+    def test_code_only_airports_use_canonical_route_when_track_cannot_validate(self):
+        adsb = {
+            "airports": [
+                {"iata": "DAL", "lat": None, "lon": None},
+                {"iata": "ORD", "lat": None, "lon": None},
+            ],
+        }
+        result = reconcile_route(adsb, (32.85, -96.85))
+
+        assert result["origin"] == "DAL"
+        assert result["destination"] == "ORD"
+        assert result["confidence"] == "medium"
+        assert result["reason"] == "adsb airport codes only (no coordinate validation)"
+
     def test_origin_name_preserved(self):
         adsb = {"airports": [RDU, KEF]}
         takeoff = (35.8776, -78.7875)

@@ -2,11 +2,18 @@
 
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import pytest
-from icao_db import get_aircraft_type, COMMON_TYPECODES, ICAODatabase
+from icao_db import (
+    get_aircraft_type,
+    COMMON_TYPECODES,
+    ICAODatabase,
+    _is_usable_aircraft_db,
+    _is_stale_aircraft_db,
+)
 
 
 class TestGetAircraftType:
@@ -77,3 +84,26 @@ class TestICAODatabase:
         """Loading a nonexistent CSV doesn't raise, just logs warning."""
         db = ICAODatabase("/nonexistent/path.csv")
         assert len(db) == 0
+
+
+def test_database_validation_rejects_incomplete_download(tmp_path):
+    database = tmp_path / "aircraftDatabase.csv"
+    database.write_text("icao24,registration\n")
+
+    assert not _is_usable_aircraft_db(database)
+
+
+def test_database_validation_accepts_complete_csv(tmp_path):
+    database = tmp_path / "aircraftDatabase.csv"
+    database.write_text("icao24,registration\nabc123,N12345\n" + ("x" * 1024))
+
+    assert _is_usable_aircraft_db(database)
+
+
+def test_database_refreshes_when_file_is_stale(tmp_path):
+    database = tmp_path / "aircraftDatabase.csv"
+    database.write_text("icao24,registration\nabc123,N12345\n" + ("x" * 1024))
+    stale_at = time.time() - (31 * 24 * 60 * 60)
+    os.utime(database, (stale_at, stale_at))
+
+    assert _is_stale_aircraft_db(database)

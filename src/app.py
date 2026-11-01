@@ -189,10 +189,12 @@ def _build_route_enrichment(icao24: str, callsign: str) -> dict:
         result.get("reason"),
     )
 
-    enrichment: dict = {
-        "route_checked_at": time.time(),
-        "callsign_raw": callsign,
-    }
+    enrichment: dict = {"callsign_raw": callsign}
+    # Keep a transient adsb.lol failure eligible for a later retry.  A
+    # non-null response is either usable route data or a definitive result
+    # that the reconciler deliberately suppressed.
+    if adsb_route is not None:
+        enrichment["route_checked_at"] = time.time()
     if result.get("origin"):
         enrichment["route_origin"] = result["origin"]
         enrichment["route_destination"] = result.get("destination", "")
@@ -220,8 +222,9 @@ def _prefetch_route_async(icao24: str, callsign: str, route_key: str | None = No
     Pulls the canonical route from adsb.lol and the LIVE flight track from
     OpenSky.  The reconciler decides whether to trust the canonical route,
     pick a specific leg of a multi-leg route, or suppress stale data.  In
-    every case we set ``route_checked_at`` so the scheduler doesn't re-fetch
-    immediately even when the result was suppression.
+    A definitive provider response stamps ``route_checked_at`` so suppressed
+    data is not re-fetched immediately.  Transient provider failures remain
+    unstamped and retry on the next poll.
     """
     route_key = route_key or _route_key(icao24, callsign)
     callsign_key = None

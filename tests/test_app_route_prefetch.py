@@ -55,6 +55,21 @@ def test_route_prefetch_emits_updated_state_immediately(monkeypatch):
     emit.assert_called_once()
 
 
+def test_route_prefetch_leaves_transient_route_failure_retryable(monkeypatch):
+    _clear_route_state()
+    mgr = AircraftStateManager()
+    mgr.update([_active_aircraft()])
+    monkeypatch.setattr(flight_app, "state_mgr", mgr)
+    monkeypatch.setattr(flight_app.route_client, "get_route", lambda callsign: None)
+    monkeypatch.setattr(flight_app.opensky, "get_track", lambda icao24: None)
+
+    flight_app._prefetch_route_async("a1b2c3", "SWA1234")
+
+    state = mgr.get_display_state()
+    assert state["display"].get("route_origin", "") == ""
+    assert state["display"].get("route_checked_at") is None
+
+
 def test_route_prefetch_backfills_blank_receiver_callsign(monkeypatch):
     _clear_route_state()
     mgr = AircraftStateManager()

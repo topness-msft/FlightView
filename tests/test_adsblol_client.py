@@ -80,6 +80,22 @@ def test_get_route_empty_airports_returns_none():
         assert client.get_route("X") is None
 
 
+def test_get_route_uses_declared_codes_without_airport_objects():
+    client = AdsbLolClient()
+    payload = {
+        "callsign": "SWA123",
+        "_airport_codes_iata": "DAL-ORD",
+        "_airports": [],
+    }
+    with patch("adsblol_client.requests.get", return_value=_mock_response(200, payload)):
+        route = client.get_route("SWA123")
+    assert route is not None
+    assert route["origin"] == "DAL"
+    assert route["destination"] == "ORD"
+    assert route["origin_name"] == ""
+    assert route["destination_name"] == ""
+
+
 def test_get_route_falls_back_to_icao_when_no_iata():
     client = AdsbLolClient()
     payload = {

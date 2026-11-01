@@ -38,6 +38,18 @@ class AdsbLolClient:
         self._neg_cache: dict = {}  # callsign -> timestamp of last definitive miss
         self._lock = threading.Lock()
 
+    @staticmethod
+    def _airport_codes(data: dict) -> list[str]:
+        """Return the upstream's declared airport-code pair, if available."""
+        for field in ("_airport_codes_iata", "airport_codes"):
+            raw_codes = data.get(field)
+            if not isinstance(raw_codes, str):
+                continue
+            codes = [code.strip() for code in raw_codes.split("-")]
+            if len(codes) >= 2 and codes[0] and codes[-1]:
+                return [codes[0], codes[-1]]
+        return []
+
     def get_route(self, callsign: str) -> dict | None:
         """Fetch route info for a flight by callsign (e.g. 'GJS4527').
 
@@ -86,14 +98,15 @@ class AdsbLolClient:
             data = resp.json()
 
             airports = data.get("_airports") or []
-            if len(airports) < 2:
+            airport_codes = self._airport_codes(data)
+            if len(airports) < 2 and not airport_codes:
                 logger.debug("adsb.lol returned no airport pair for %s", callsign)
                 with self._lock:
                     self._neg_cache[callsign] = time.time()
                 return None
 
-            origin_ap = airports[0] or {}
-            dest_ap = airports[-1] or {}
+            origin_ap = airports[0] if airports and isinstance(airports[0], dict) else {}
+            dest_ap = airports[-1] if airports and isinstance(airports[-1], dict) else {}
 
             # Normalise the airport list so callers (reconciler, tests) don't
             # need to know the raw upstream shape.  Each entry includes lat/lon
@@ -111,10 +124,21 @@ class AdsbLolClient:
                     "lat": ap.get("lat"),
                     "lon": ap.get("lon"),
                 })
+            if not normalised_airports and airport_codes:
+                normalised_airports = [
+                    {"iata": code, "icao": "", "name": "", "location": "", "lat": None, "lon": None}
+                    for code in airport_codes
+                ]
 
             route_data = {
-                "origin": (origin_ap.get("iata") or origin_ap.get("icao") or "").strip(),
-                "destination": (dest_ap.get("iata") or dest_ap.get("icao") or "").strip(),
+                "origin": (
+                    origin_ap.get("iata") or origin_ap.get("icao")
+                    or (airport_codes[0] if airport_codes else "")
+                ).strip(),
+                "destination": (
+                    dest_ap.get("iata") or dest_ap.get("icao")
+                    or (airport_codes[-1] if airport_codes else "")
+                ).strip(),
                 "origin_name": (origin_ap.get("location") or origin_ap.get("name") or "").strip(),
                 "destination_name": (dest_ap.get("location") or dest_ap.get("name") or "").strip(),
                 "airports": normalised_airports,

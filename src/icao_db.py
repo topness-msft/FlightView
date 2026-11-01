@@ -7,6 +7,7 @@ aircraft names.
 
 import csv
 import logging
+import time
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -215,28 +216,65 @@ class ICAODatabase:
 OPENSKY_DB_URL = "https://opensky-network.org/datasets/metadata/aircraftDatabase.csv"
 DB_DIR = Path(__file__).resolve().parent.parent / "data"
 DB_PATH = DB_DIR / "aircraftDatabase.csv"
+MIN_DB_SIZE_BYTES = 1024
+MAX_DB_AGE_SEC = 30 * 24 * 60 * 60
+
+
+def _is_usable_aircraft_db(path: Path) -> bool:
+    """Check that an existing database is not an interrupted download."""
+    try:
+        if path.stat().st_size < MIN_DB_SIZE_BYTES:
+            return False
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            header = next(csv.reader(f), [])
+        return "icao24" in {column.strip().lower() for column in header}
+    except OSError:
+        return False
+
+
+def _is_stale_aircraft_db(path: Path) -> bool:
+    """Return whether a valid database should be refreshed."""
+    try:
+        return (time.time() - path.stat().st_mtime) >= MAX_DB_AGE_SEC
+    except OSError:
+        return True
 
 
 def ensure_aircraft_db() -> str | None:
-    """Download the OpenSky aircraft database if not present. Returns path or None."""
-    if DB_PATH.exists():
+    """Download the OpenSky aircraft database when it is missing, invalid, or stale."""
+    if _is_usable_aircraft_db(DB_PATH) and not _is_stale_aircraft_db(DB_PATH):
         logger.info("Aircraft database found: %s (%d MB)", DB_PATH, DB_PATH.stat().st_size // 1_000_000)
         return str(DB_PATH)
 
+    if DB_PATH.exists():
+        if _is_usable_aircraft_db(DB_PATH):
+            logger.info("Aircraft database is stale and will be refreshed: %s", DB_PATH)
+        else:
+            logger.warning("Aircraft database is incomplete or invalid: %s", DB_PATH)
+
     logger.info("Downloading OpenSky aircraft database (~90 MB)...")
+    temporary_path = DB_PATH.with_suffix(".csv.download")
     try:
         DB_DIR.mkdir(parents=True, exist_ok=True)
         import requests
         resp = requests.get(OPENSKY_DB_URL, timeout=120, stream=True)
         resp.raise_for_status()
-        with open(DB_PATH, "wb") as f:
+        with open(temporary_path, "wb") as f:
             for chunk in resp.iter_content(chunk_size=1_000_000):
                 f.write(chunk)
+        if not _is_usable_aircraft_db(temporary_path):
+            raise ValueError("Downloaded aircraft database is incomplete or invalid")
+        temporary_path.replace(DB_PATH)
         logger.info("Aircraft database downloaded: %s (%d MB)", DB_PATH, DB_PATH.stat().st_size // 1_000_000)
         return str(DB_PATH)
     except Exception:
         logger.warning("Failed to download aircraft database", exc_info=True)
         return None
+    finally:
+        try:
+            temporary_path.unlink(missing_ok=True)
+        except OSError:
+            logger.warning("Could not remove incomplete aircraft database download: %s", temporary_path)
 
 
 # Module-level singleton — auto-download on first import

@@ -179,8 +179,14 @@ def reconcile_route(adsb_route: dict | None,
     if not airports or len(airports) < 2:
         return {**blank, "reason": "no adsb airports"}
 
-    # No track → can't validate
-    if takeoff_point is None:
+    has_airport_coordinates = any(
+        airport.get("lat") is not None and airport.get("lon") is not None
+        for airport in airports
+        if isinstance(airport, dict)
+    )
+
+    # No track or airport coordinates → can't validate.
+    if takeoff_point is None or not has_airport_coordinates:
         if _is_circular(airports):
             # Multi-leg / round-trip schedule with same first/last airport.
             # Naively picking first+last would display "CLT → CLT" — clearly
@@ -192,7 +198,11 @@ def reconcile_route(adsb_route: dict | None,
             "origin_name": _airport_name(airports[0]),
             "destination_name": _airport_name(airports[-1]),
             "confidence": "medium",
-            "reason": "adsb only (no track validation)",
+            "reason": (
+                "adsb only (no track validation)"
+                if takeoff_point is None
+                else "adsb airport codes only (no coordinate validation)"
+            ),
         }
 
     # Have both adsb + track — find closest airport to takeoff coords.
