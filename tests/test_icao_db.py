@@ -7,6 +7,7 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import pytest
+import icao_db as icao_database
 from icao_db import (
     get_aircraft_type,
     COMMON_TYPECODES,
@@ -107,3 +108,17 @@ def test_database_refreshes_when_file_is_stale(tmp_path):
     os.utime(database, (stale_at, stale_at))
 
     assert _is_stale_aircraft_db(database)
+
+
+def test_refresh_failure_keeps_existing_valid_database(tmp_path, monkeypatch):
+    database = tmp_path / "aircraftDatabase.csv"
+    database.write_text("icao24,registration\nabc123,N12345\n" + ("x" * 1024))
+    stale_at = time.time() - (31 * 24 * 60 * 60)
+    os.utime(database, (stale_at, stale_at))
+    monkeypatch.setattr(icao_database, "DB_PATH", database)
+    monkeypatch.setattr(icao_database, "DB_DIR", tmp_path)
+
+    import requests
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: (_ for _ in ()).throw(requests.RequestException()))
+
+    assert icao_database.ensure_aircraft_db() == str(database)

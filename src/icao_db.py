@@ -242,12 +242,13 @@ def _is_stale_aircraft_db(path: Path) -> bool:
 
 def ensure_aircraft_db() -> str | None:
     """Download the OpenSky aircraft database when it is missing, invalid, or stale."""
-    if _is_usable_aircraft_db(DB_PATH) and not _is_stale_aircraft_db(DB_PATH):
+    existing_db_is_usable = _is_usable_aircraft_db(DB_PATH)
+    if existing_db_is_usable and not _is_stale_aircraft_db(DB_PATH):
         logger.info("Aircraft database found: %s (%d MB)", DB_PATH, DB_PATH.stat().st_size // 1_000_000)
         return str(DB_PATH)
 
     if DB_PATH.exists():
-        if _is_usable_aircraft_db(DB_PATH):
+        if existing_db_is_usable:
             logger.info("Aircraft database is stale and will be refreshed: %s", DB_PATH)
         else:
             logger.warning("Aircraft database is incomplete or invalid: %s", DB_PATH)
@@ -269,6 +270,9 @@ def ensure_aircraft_db() -> str | None:
         return str(DB_PATH)
     except Exception:
         logger.warning("Failed to download aircraft database", exc_info=True)
+        if existing_db_is_usable:
+            logger.warning("Keeping the existing aircraft database after refresh failure: %s", DB_PATH)
+            return str(DB_PATH)
         return None
     finally:
         try:
