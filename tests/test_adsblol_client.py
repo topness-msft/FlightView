@@ -71,6 +71,7 @@ def test_get_route_404_returns_none():
     client = AdsbLolClient()
     with patch("adsblol_client.requests.get", return_value=_mock_response(404)):
         assert client.get_route("UNKNOWN1") is None
+    assert client.is_definitive_miss("unknown1")
 
 
 def test_get_route_empty_airports_returns_none():

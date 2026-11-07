@@ -2,6 +2,7 @@
 
 import os
 import sys
+import time
 from unittest.mock import Mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -68,6 +69,27 @@ def test_route_prefetch_leaves_transient_route_failure_retryable(monkeypatch):
     state = mgr.get_display_state()
     assert state["display"].get("route_origin", "") == ""
     assert state["display"].get("route_checked_at") is None
+
+
+def test_route_prefetch_marks_definitive_route_miss_checked(monkeypatch):
+    _clear_route_state()
+    mgr = AircraftStateManager()
+    mgr.update([_active_aircraft()])
+    monkeypatch.setattr(flight_app, "state_mgr", mgr)
+    monkeypatch.setattr(flight_app.route_client, "get_route", lambda callsign: None)
+    monkeypatch.setattr(flight_app.opensky, "get_track", lambda icao24: None)
+    with flight_app.route_client._lock:
+        flight_app.route_client._neg_cache["SWA1234"] = time.time()
+
+    try:
+        flight_app._prefetch_route_async("a1b2c3", "SWA1234")
+    finally:
+        with flight_app.route_client._lock:
+            flight_app.route_client._neg_cache.pop("SWA1234", None)
+
+    state = mgr.get_display_state()
+    assert state["display"].get("route_origin", "") == ""
+    assert state["display"]["route_checked_at"] is not None
 
 
 def test_route_prefetch_backfills_blank_receiver_callsign(monkeypatch):

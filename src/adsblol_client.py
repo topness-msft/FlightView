@@ -50,6 +50,18 @@ class AdsbLolClient:
                 return [codes[0], codes[-1]]
         return []
 
+    def is_definitive_miss(self, callsign: str) -> bool:
+        """Return whether a recent lookup confirmed no route for this callsign."""
+        normalized_callsign = callsign.strip().upper() if callsign else ""
+        if not normalized_callsign:
+            return False
+        with self._lock:
+            missed_at = self._neg_cache.get(normalized_callsign)
+            return bool(
+                missed_at
+                and (time.time() - missed_at) < self.NEG_CACHE_TTL_SEC
+            )
+
     def get_route(self, callsign: str) -> dict | None:
         """Fetch route info for a flight by callsign (e.g. 'GJS4527').
 

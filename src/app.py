@@ -160,6 +160,7 @@ def _build_route_enrichment(icao24: str, callsign: str) -> dict:
     ta0 = time.time()
     adsb_route = route_client.get_route(callsign)
     adsb_ms = int((time.time() - ta0) * 1000)
+    route_was_definitively_missing = route_client.is_definitive_miss(callsign)
 
     track_thread.join()
     track_path = track_holder.get("path")
@@ -190,10 +191,11 @@ def _build_route_enrichment(icao24: str, callsign: str) -> dict:
     )
 
     enrichment: dict = {"callsign_raw": callsign}
-    # Keep a transient adsb.lol failure eligible for a later retry.  A
-    # non-null response is either usable route data or a definitive result
-    # that the reconciler deliberately suppressed.
-    if adsb_route is not None:
+    # Keep a transient adsb.lol failure eligible for a later retry. A
+    # non-null response is either usable route data or a result the
+    # reconciler suppressed; a recent negative-cache entry is a definitive
+    # provider miss and should not repeatedly trigger track lookups.
+    if adsb_route is not None or route_was_definitively_missing:
         enrichment["route_checked_at"] = time.time()
     if result.get("origin"):
         enrichment["route_origin"] = result["origin"]
